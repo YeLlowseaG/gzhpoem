@@ -10,7 +10,7 @@ const fs = require('fs').promises;
 // 服务模块
 const AIService = require('./services/ai-service');
 const WechatService = require('./services/wechat-service');
-const StorageService = require('./services/storage-service');
+const KVStorageService = require('./services/kv-storage-service');
 const ConfigService = require('./services/config-service');
 
 const app = express();
@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 3001;
 // 初始化服务
 const aiService = new AIService();
 const wechatService = new WechatService();
-const storageService = new StorageService();
+const storageService = new KVStorageService();
 const configService = new ConfigService();
 
 // 中间件

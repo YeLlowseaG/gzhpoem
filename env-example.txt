@@ -12,4 +12,13 @@ DEEPSEEK_API_KEY=your_deepseek_api_key_here
 
 # 微信公众号配置（可选）
 WECHAT_APP_ID=your_wechat_app_id
-WECHAT_APP_SECRET=your_wechat_app_secret 
+WECHAT_APP_SECRET=your_wechat_app_secret
+
+# Vercel KV 数据库配置（Vercel 部署时自动设置）
+# 无需手动配置，Vercel 会自动注入这些环境变量
+KV_REST_API_URL=vercel_kv_rest_api_url
+KV_REST_API_TOKEN=vercel_kv_rest_api_token
+
+# 服务配置
+NODE_ENV=production
+PORT=3001 
