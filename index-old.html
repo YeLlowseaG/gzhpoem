@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最美诗词 - 公众号文章生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            width: 100%;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tab-content.active.generate-layout {
+            display: flex;
+        }
+
+
+        .upload-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            margin-left: 10px;
+        }
+
+        .upload-btn:hover {
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-connected {
+            background: #28a745;
+        }
+
+        .status-disconnected {
+            background: #dc3545;
+        }
+
+        .main-content {
+            display: flex;
+            min-height: 600px;
+        }
+        
+        .tab-content {
+            width: 100%;
+        }
+        
+        .tab-content.generate-layout {
+            display: flex;
+        }
+
+        .input-section {
+            flex: 1;
+            padding: 40px;
+            background: #f8f9fa;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .output-section {
+            flex: 1;
+            padding: 40px;
+            background: white;
+        }
+        
+        .config-section {
+            width: 100%;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .output-area {
+            width: 100%;
+            min-height: 500px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            line-height: 1.6;
+            background: #f8f9fa;
+            font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+        }
+
+        .copy-btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            display: none;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            display: none;
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .input-section {
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌸 最美诗词</h1>
+            <p>AI驱动的诗词赏析文章生成器</p>
+        </div>
+        
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('generate')">📝 生成文章</button>
+            <button class="nav-tab" onclick="switchTab('config')">⚙️ 公众号配置</button>
+        </div>
+        
+        <div class="main-content">
+            <div id="generateTab" class="tab-content generate-layout active">
+                <div class="input-section">
+                <h2 style="margin-bottom: 30px; color: #333;">输入信息</h2>
+                
+                <div class="form-group">
+                    <label for="author">作者</label>
+                    <input type="text" id="author" placeholder="例如：李白" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="title">诗词名称</label>
+                    <input type="text" id="title" placeholder="例如：静夜思" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="style">文章风格</label>
+                    <select id="style">
+                        <option value="popular">通俗易懂</option>
+                        <option value="literary">文雅精致</option>
+                        <option value="emotional">情感丰富</option>
+                        <option value="academic">学术严谨</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="keywords">关键词（可选）</label>
+                    <input type="text" id="keywords" placeholder="例如：思乡、月夜、孤独">
+                </div>
+                
+                <button class="generate-btn" onclick="generateArticle()">
+                    ✨ 生成文章
+                </button>
+                </div>
+            
+                <div class="output-section">
+                <h2 style="margin-bottom: 30px; color: #333;">生成结果</h2>
+                
+                <div class="error-message" id="errorMessage"></div>
+                <div class="success-message" id="successMessage"></div>
+                
+                <div class="loading" id="loading">
+                    <div class="loading-spinner"></div>
+                    <p>正在生成文章，请稍候...</p>
+                </div>
+                
+                <textarea class="output-area" id="output" placeholder="生成的文章将在这里显示..." readonly></textarea>
+                
+                <button class="copy-btn" onclick="copyToClipboard()" id="copyBtn" style="display: none;">
+                    📋 复制到剪贴板
+                </button>
+                
+                <button class="copy-btn upload-btn" onclick="uploadToDraft()" id="uploadBtn" style="display: none;">
+                    🚀 上传到草稿箱
+                </button>
+                </div>
+            </div>
+            
+            <div id="configTab" class="tab-content">
+                <div style="max-width: 800px; margin: 0 auto; padding: 40px;">
+                    <h2 style="margin-bottom: 30px; color: #333; text-align: center;">微信公众号配置</h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+                        <div>
+                            <div class="form-group">
+                                <label for="appId">AppID</label>
+                                <input type="text" id="appId" placeholder="请输入公众号AppID">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="appSecret">AppSecret</label>
+                                <input type="password" id="appSecret" placeholder="请输入公众号AppSecret">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>连接状态</label>
+                                <div style="margin-top: 10px;">
+                                    <span class="status-indicator status-disconnected" id="statusIndicator"></span>
+                                    <span id="statusText">未连接</span>
+                                </div>
+                            </div>
+                            
+                            <button class="generate-btn" onclick="testConnection()" id="testBtn">
+                                🔗 测试连接
+                            </button>
+                        </div>
+                        
+                        <div>
+                            <div style="padding: 20px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 20px;">
+                                <h3 style="color: #1976d2; margin-bottom: 15px;">📋 获取配置信息</h3>
+                                <ol style="color: #424242; line-height: 1.8; margin: 0; padding-left: 20px;">
+                                    <li>登录微信公众平台</li>
+                                    <li>进入"开发" → "基本配置"</li>
+                                    <li>复制AppID和AppSecret</li>
+                                    <li>在左侧填入并测试连接</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 20px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+                        <h3 style="color: #856404; margin-bottom: 15px;">⚠️ IP白名单设置</h3>
+                        <p style="color: #856404; line-height: 1.6; margin: 0;">
+                            在微信公众平台的"基本配置"中，需要将以下IP添加到白名单：<br>
+                            <strong>IPv4:</strong> 50.116.13.131　<strong>IPv6:</strong> 2600:3c01::f03c:93ff:febc:9ec
+                        </p>
+                    </div>
+                    
+                    <div style="padding: 20px; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                        <h3 style="color: #155724; margin-bottom: 15px;">✅ 使用流程</h3>
+                        <ul style="color: #155724; line-height: 1.8; margin: 0; padding-left: 20px;">
+                            <li>配置微信公众号信息</li>
+                            <li>生成诗词赏析文章</li>
+                            <li>一键上传到草稿箱</li>
+                            <li>在微信公众平台查看和发布</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function generateArticle() {
+            const author = document.getElementById('author').value.trim();
+            const title = document.getElementById('title').value.trim();
+            const style = document.getElementById('style').value;
+            const keywords = document.getElementById('keywords').value.trim();
+            
+            if (!author || !title) {
+                showError('请输入作者和诗词名称');
+                return;
+            }
+            
+            showLoading();
+            hideMessages();
+            
+            try {
+                const article = await generatePoemAnalysis(author, title, style, keywords);
+                document.getElementById('output').value = article;
+                document.getElementById('copyBtn').style.display = 'block';
+                document.getElementById('uploadBtn').style.display = 'block';
+                showSuccess('文章生成成功！');
+            } catch (error) {
+                showError('生成失败：' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        let wechatConfig = {
+            appId: '',
+            appSecret: '',
+            accessToken: '',
+            tokenExpiry: 0
+        };
+        
+        // 从localStorage加载配置
+        function loadConfig() {
+            const saved = localStorage.getItem('wechatConfig');
+            if (saved) {
+                wechatConfig = { ...wechatConfig, ...JSON.parse(saved) };
+                document.getElementById('appId').value = wechatConfig.appId;
+                document.getElementById('appSecret').value = wechatConfig.appSecret;
+                updateConnectionStatus();
+            }
+        }
+        
+        // 保存配置到localStorage
+        function saveConfig() {
+            localStorage.setItem('wechatConfig', JSON.stringify(wechatConfig));
+        }
+        
+        // 切换标签页
+        function switchTab(tabName) {
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 移除所有标签按钮的active类
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 显示选中的标签内容
+            if (tabName === 'generate') {
+                document.getElementById('generateTab').classList.add('active');
+                document.querySelector('.nav-tab:first-child').classList.add('active');
+            } else if (tabName === 'config') {
+                document.getElementById('configTab').classList.add('active');
+                document.querySelector('.nav-tab:last-child').classList.add('active');
+            }
+        }
+        
+        // 获取微信AccessToken
+        async function getAccessToken() {
+            const appId = document.getElementById('appId').value.trim();
+            const appSecret = document.getElementById('appSecret').value.trim();
+            
+            if (!appId || !appSecret) {
+                throw new Error('请先配置AppID和AppSecret');
+            }
+            
+            // 检查token是否还有效
+            if (wechatConfig.accessToken && Date.now() < wechatConfig.tokenExpiry) {
+                return wechatConfig.accessToken;
+            }
+            
+            try {
+                const response = await fetch('/api/wechat/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appId: appId,
+                        appSecret: appSecret
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.access_token) {
+                    wechatConfig.appId = appId;
+                    wechatConfig.appSecret = appSecret;
+                    wechatConfig.accessToken = data.access_token;
+                    wechatConfig.tokenExpiry = Date.now() + (data.expires_in - 300) * 1000; // 提前5分钟过期
+                    saveConfig();
+                    return data.access_token;
+                } else {
+                    throw new Error(data.errmsg || '获取AccessToken失败');
+                }
+            } catch (error) {
+                throw new Error('请求失败: ' + error.message);
+            }
+        }
+        
+        // 测试微信连接
+        async function testConnection() {
+            const testBtn = document.getElementById('testBtn');
+            testBtn.disabled = true;
+            testBtn.textContent = '🔄 测试中...';
+            
+            try {
+                await getAccessToken();
+                updateConnectionStatus(true);
+                showSuccess('微信公众号连接成功！');
+            } catch (error) {
+                updateConnectionStatus(false);
+                showError('连接失败：' + error.message);
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = '🔗 测试连接';
+            }
+        }
+        
+        // 更新连接状态显示
+        function updateConnectionStatus(connected = null) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if (connected === null) {
+                connected = wechatConfig.accessToken && Date.now() < wechatConfig.tokenExpiry;
+            }
+            
+            if (connected) {
+                indicator.className = 'status-indicator status-connected';
+                statusText.textContent = '已连接';
+            } else {
+                indicator.className = 'status-indicator status-disconnected';
+                statusText.textContent = '未连接';
+            }
+        }
+        
+        // 上传封面图片到微信素材库
+        async function uploadCoverImage(imageUrl) {
+            const accessToken = await getAccessToken();
+            
+            try {
+                const response = await fetch('/api/wechat/upload-image-from-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        accessToken: accessToken,
+                        imageUrl: imageUrl
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.media_id) {
+                    return data.media_id;
+                } else {
+                    throw new Error(data.errmsg || '上传封面图片失败');
+                }
+            } catch (error) {
+                throw new Error('上传图片失败: ' + error.message);
+            }
+        }
+        
+        // 上传文章到草稿箱
+        async function uploadToDraft() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            const originalText = uploadBtn.textContent;
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '🚀 上传中...';
+            
+            try {
+                const accessToken = await getAccessToken();
+                const content = document.getElementById('output').value;
+                const author = document.getElementById('author').value;
+                const title = document.getElementById('title').value;
+                
+                if (!content) {
+                    throw new Error('请先生成文章内容');
+                }
+                
+                // 上传封面图片
+                const thumbMediaId = await uploadCoverImage('https://images.unsplash.com/photo-1551218808-94e220e084d2');
+                
+                // 创建草稿
+                const draftData = {
+                    articles: [{
+                        title: title + ' - ' + author,
+                        author: '最美诗词',
+                        digest: content.substring(0, 120) + '...',
+                        content: content.replace(/!\[.*?\]\(.*?\)/g, ''), // 移除markdown图片语法
+                        content_source_url: '',
+                        thumb_media_id: thumbMediaId,
+                        show_cover_pic: 1,
+                        need_open_comment: 0,
+                        only_fans_can_comment: 0
+                    }]
+                };
+                
+                const response = await fetch('/api/wechat/draft/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        accessToken: accessToken,
+                        articles: draftData.articles
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.errcode === 0) {
+                    showSuccess('文章已成功上传到草稿箱！');
+                } else {
+                    throw new Error(result.errmsg || '上传失败');
+                }
+                
+            } catch (error) {
+                showError('上传失败：' + error.message);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = originalText;
+            }
+        }
+
+        async function generatePoemAnalysis(author, title, style, keywords) {
+            // 模拟API调用 - 实际使用时需要替换为真实的AI API
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            const styleMap = {
+                'popular': '通俗易懂',
+                'literary': '文雅精致',
+                'emotional': '情感丰富',
+                'academic': '学术严谨'
+            };
+            
+            // 生成900+字的示例文章
+            return `# 千古绝唱！${author}《${title}》背后的深意，读懂的人都哭了
+
+![封面图片](https://images.unsplash.com/photo-1551218808-94e220e084d2?w=800&h=600&fit=crop)
+
+当我们谈论中国古典诗词的璀璨明珠时，${author}的《${title}》无疑是其中最耀眼的一颗。这首诗不仅仅是文字的组合，更是情感的结晶，是中华文化的瑰宝。今天，让我们一起走进这首诗的世界，感受其中蕴含的深刻内涵。
+
+## 📖 诗词原文
+
+**《${title}》**  
+*${author}*
+
+（此处应插入具体诗词内容）
+
+## 🌟 创作背景与时代意义
+
+${author}创作《${title}》的时代背景极为重要。当时的社会环境、政治氛围以及诗人的个人经历，都深深影响着这首诗的创作。通过了解这些背景，我们能够更好地理解诗人的内心世界和创作动机。
+
+这首诗诞生于一个特殊的历史时期，那时的文人墨客们面临着种种人生际遇。${author}作为其中的佼佼者，用他独特的视角和深刻的洞察力，为我们留下了这样一首传世佳作。
+
+![配图1](https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop)
+
+## 🎯 逐句深度赏析
+
+每一句诗都是诗人情感的体现，每一个字都承载着深刻的含义。让我们逐句来品味这首诗的精妙之处：
+
+**第一句的妙处在于**其开门见山的表达方式，直接将读者带入到诗人所营造的意境之中。这种写法看似简单，实则蕴含着高超的艺术技巧。
+
+**第二句则进一步深化了主题**，通过具体的意象描绘，让抽象的情感变得具体可感。这种由浅入深的表达方式，正是古典诗词的魅力所在。
+
+**第三句和第四句形成了完美的呼应**，前后照应，使得整首诗的结构更加完整，意境更加深远。这种结构安排体现了诗人深厚的文学功底和精湛的艺术修养。
+
+## 🌸 重点词语与意象解析
+
+在这首诗中，几个关键词语的运用尤为精妙：
+
+**核心意象一**：这个意象在古典诗词中具有特殊的象征意义，它不仅仅是一个简单的景物描写，更是情感的载体和精神的寄托。
+
+**核心意象二**：通过这个意象，诗人巧妙地将个人情感与普遍的人生体验联系起来，使得作品具有了更广阔的共鸣空间。
+
+**核心意象三**：这个意象的运用体现了诗人对生活的深刻观察和独特感悟，它既是现实的写照，也是理想的象征。
+
+## 👨‍🎨 诗人生平与创作风格
+
+${author}作为中国古代文学史上的重要人物，其生平经历和创作风格都值得我们深入了解。他的诗歌创作不仅数量丰富，而且质量上乘，在文学史上占有重要地位。
+
+诗人的创作风格独特鲜明，无论是在意境营造、语言运用还是情感表达方面，都有着自己独特的特色。这种风格的形成与他的人生经历、文化背景以及时代环境都有着密切的关系。
+
+![配图2](https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&h=400&fit=crop)
+
+## 🎨 艺术手法与表现技巧
+
+这首诗在艺术表现上有许多值得我们学习和欣赏的地方：
+
+**1. 意境营造**：诗人通过精心选择的意象和巧妙的组合，营造出了一个独特的艺术境界，让读者仿佛身临其境。
+
+**2. 语言运用**：诗中的每一个字都经过精心推敲，既保持了语言的优美，又确保了意思的准确传达。
+
+**3. 结构安排**：全诗的结构严谨，层次分明，前后呼应，形成了一个完整的艺术整体。
+
+**4. 情感表达**：诗人通过含蓄而深刻的表达方式，将复杂的情感融入到简洁的诗句中。
+
+## 💭 情感主题与现代意义
+
+《${title}》所表达的情感主题具有永恒的价值，它不仅仅属于那个时代，更属于我们每一个人。在现代社会中，这首诗仍然能够引起我们的共鸣，给我们以启发和思考。
+
+诗中所体现的人生哲理和情感体验，超越了时空的限制，成为了人类共同的精神财富。无论是在人生的得意时刻还是失意时刻，这首诗都能够给我们以力量和慰藉。
+
+## 🌟 文学价值与传承意义
+
+这首诗在中国文学史上具有重要的地位和价值，它不仅是${author}个人创作的代表作，也是整个时代文学成就的体现。
+
+通过对这首诗的深入解读，我们不仅能够欣赏到古典诗词的艺术魅力，更能够从中汲取智慧和力量，这正是优秀文学作品的价值所在。
+
+![配图3](https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=600&h=400&fit=crop)
+
+## 结语
+
+${author}的《${title}》是一首永远读不厌的诗，每一次重读都会有新的感悟和收获。它像一面镜子，映照着我们的内心世界；它像一位老师，教导着我们人生的道理；它像一个朋友，陪伴着我们走过人生的风风雨雨。
+
+让我们在繁忙的现代生活中，偶尔停下脚步，重温这些经典之作，让古典诗词的美好继续滋养我们的心灵。
+
+---
+
+*如果这篇文章让你有所感悟，请点赞转发，让更多人感受到古典诗词的魅力！*
+
+**关注「最美诗词」，每天为你推送最美的诗词赏析！**`;
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('output').style.display = 'none';
+            document.getElementById('copyBtn').style.display = 'none';
+            document.getElementById('uploadBtn').style.display = 'none';
+            document.querySelector('.generate-btn').disabled = true;
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('output').style.display = 'block';
+            document.querySelector('.generate-btn').disabled = false;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        function copyToClipboard() {
+            const output = document.getElementById('output');
+            output.select();
+            document.execCommand('copy');
+            
+            const copyBtn = document.getElementById('copyBtn');
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✅ 已复制！';
+            
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+            }, 2000);
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfig();
+            console.log('最美诗词生成器已加载完成');
+        });
+    </script>
+</body>
+</html>
