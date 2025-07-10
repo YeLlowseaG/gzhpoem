@@ -54,11 +54,15 @@ app.get('/health', (req, res) => {
 
 // 生成完整的公众号内容包（文章+标题+封面）
 app.post('/api/articles/generate', async (req, res) => {
+    console.log('=== 生成文章请求开始 ===');
+    console.log('请求体:', JSON.stringify(req.body, null, 2));
+    
     try {
         const { author, title, style, keywords, content } = req.body;
         
         // 参数验证
         if (!author || !title) {
+            console.log('❌ 参数验证失败: 作者或标题为空');
             return res.status(400).json({
                 success: false,
                 error: '作者和标题不能为空'
@@ -66,8 +70,11 @@ app.post('/api/articles/generate', async (req, res) => {
         }
         
         console.log(`🎯 开始生成完整内容包: ${author} - ${title}`);
+        console.log('AI服务配置状态:', aiService.isConfigured());
+        console.log('存储服务状态:', storageService.isReady());
         
         // 生成完整内容包（文章+标题+封面）
+        console.log('📝 调用AI服务生成文章...');
         const result = await aiService.generateArticle({
             author,
             title,
@@ -76,8 +83,14 @@ app.post('/api/articles/generate', async (req, res) => {
             content
         });
         
+        console.log('🎨 AI生成结果:', result.success ? '成功' : '失败');
+        if (!result.success) {
+            console.log('❌ AI生成失败原因:', result.error);
+        }
+        
         // 保存到本地
         if (result.success) {
+            console.log('💾 保存文章到存储...');
             const savedArticle = await storageService.saveArticle({
                 ...result,
                 metadata: { 
@@ -91,17 +104,24 @@ app.post('/api/articles/generate', async (req, res) => {
             
             // 返回包含ID的结果
             result.id = savedArticle.id;
+            console.log('✅ 文章保存成功, ID:', savedArticle.id);
         }
         
         console.log(`✅ 内容包生成完成: ${result.source}`);
         res.json(result);
         
     } catch (error) {
-        console.error('生成内容包失败:', error);
+        console.error('❌❌❌ 生成内容包失败 ❌❌❌');
+        console.error('错误详情:', error);
+        console.error('错误堆栈:', error.stack);
+        console.error('错误名称:', error.name);
+        console.error('错误消息:', error.message);
+        
         res.status(500).json({
             success: false,
             error: '生成内容包失败',
-            message: error.message
+            message: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });
