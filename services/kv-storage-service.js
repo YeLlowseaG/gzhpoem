@@ -22,7 +22,7 @@ class KVStorageService {
      * 检查 KV 是否可用
      */
     checkKVAvailability() {
-        return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+        return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) || !!process.env.REDIS_URL;
     }
 
     /**
