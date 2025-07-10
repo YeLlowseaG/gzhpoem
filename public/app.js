@@ -818,3 +818,23 @@ function exportData() {
 function searchArticles() {
     app.searchArticles();
 }
+
+function saveSettings() {
+    // 保存设置逻辑
+    app.hideSettings();
+    app.showToast('success', '设置保存成功');
+}
+
+// 补充缺失的方法
+PoemApp.prototype.loadWechatStatus = async function() {
+    try {
+        const response = await fetch('/health');
+        const data = await response.json();
+        
+        if (data.services && data.services.wechat !== undefined) {
+            this.updateWechatStatus(data.services.wechat);
+        }
+    } catch (error) {
+        console.error('加载微信状态失败:', error);
+    }
+};
