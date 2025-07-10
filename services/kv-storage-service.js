@@ -1,4 +1,17 @@
-const { kv } = require('@vercel/kv');
+// 动态导入 KV，避免环境变量缺失时报错
+let kv = null;
+try {
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+        kv = require('@vercel/kv').kv;
+    } else if (process.env.REDIS_URL) {
+        // 使用 Redis URL 创建连接
+        const redis = require('redis');
+        kv = redis.createClient({ url: process.env.REDIS_URL });
+        kv.connect().catch(console.error);
+    }
+} catch (error) {
+    console.warn('KV/Redis 初始化失败:', error.message);
+}
 const { v4: uuidv4 } = require('uuid');
 
 class KVStorageService {
@@ -22,7 +35,7 @@ class KVStorageService {
      * 检查 KV 是否可用
      */
     checkKVAvailability() {
-        return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) || !!process.env.REDIS_URL;
+        return !!kv;
     }
 
     /**
@@ -61,7 +74,7 @@ class KVStorageService {
                     articles.splice(1000);
                 }
                 
-                await kv.set('articles', articles);
+                await kv.set('articles', JSON.stringify(articles));
                 
                 // 更新统计
                 await this.updateStats('totalArticles', 1);
@@ -91,8 +104,11 @@ class KVStorageService {
     async loadArticles() {
         try {
             if (this.isKVAvailable) {
-                const articles = await kv.get('articles');
-                return articles || [];
+                const data = await kv.get('articles');
+                if (data) {
+                    return typeof data === 'string' ? JSON.parse(data) : data;
+                }
+                return [];
             } else {
                 return this.memoryStorage.articles;
             }
@@ -183,7 +199,7 @@ class KVStorageService {
             };
             
             if (this.isKVAvailable) {
-                await kv.set('articles', articles);
+                await kv.set('articles', JSON.stringify(articles));
             } else {
                 this.memoryStorage.articles = articles;
             }
@@ -212,7 +228,7 @@ class KVStorageService {
             const deletedArticle = articles.splice(index, 1)[0];
             
             if (this.isKVAvailable) {
-                await kv.set('articles', articles);
+                await kv.set('articles', JSON.stringify(articles));
                 await this.updateStats('totalArticles', -1);
             } else {
                 this.memoryStorage.articles = articles;
@@ -243,12 +259,17 @@ class KVStorageService {
             let stats;
             
             if (this.isKVAvailable) {
-                stats = await kv.get('stats') || {
-                    totalArticles: 0,
-                    totalGenerations: 0,
-                    totalWechatUploads: 0,
-                    createdAt: new Date().toISOString()
-                };
+                const data = await kv.get('stats');
+                if (data) {
+                    stats = typeof data === 'string' ? JSON.parse(data) : data;
+                } else {
+                    stats = {
+                        totalArticles: 0,
+                        totalGenerations: 0,
+                        totalWechatUploads: 0,
+                        createdAt: new Date().toISOString()
+                    };
+                }
             } else {
                 stats = this.memoryStorage.stats;
             }
@@ -286,10 +307,11 @@ class KVStorageService {
     async updateStats(key, increment) {
         try {
             if (this.isKVAvailable) {
-                const stats = await kv.get('stats') || {};
+                const data = await kv.get('stats');
+                const stats = data ? (typeof data === 'string' ? JSON.parse(data) : data) : {};
                 stats[key] = (stats[key] || 0) + increment;
                 stats.updatedAt = new Date().toISOString();
-                await kv.set('stats', stats);
+                await kv.set('stats', JSON.stringify(stats));
             } else {
                 this.memoryStorage.stats[key] = (this.memoryStorage.stats[key] || 0) + increment;
                 this.memoryStorage.stats.updatedAt = new Date().toISOString();
@@ -349,7 +371,7 @@ class KVStorageService {
         try {
             if (data.articles && Array.isArray(data.articles)) {
                 if (this.isKVAvailable) {
-                    await kv.set('articles', data.articles);
+                    await kv.set('articles', JSON.stringify(data.articles));
                 } else {
                     this.memoryStorage.articles = data.articles;
                 }
@@ -357,7 +379,7 @@ class KVStorageService {
             
             if (data.stats) {
                 if (this.isKVAvailable) {
-                    await kv.set('stats', data.stats);
+                    await kv.set('stats', JSON.stringify(data.stats));
                 } else {
                     this.memoryStorage.stats = data.stats;
                 }
@@ -385,7 +407,7 @@ class KVStorageService {
             
             if (filteredArticles.length < articles.length) {
                 if (this.isKVAvailable) {
-                    await kv.set('articles', filteredArticles);
+                    await kv.set('articles', JSON.stringify(filteredArticles));
                 } else {
                     this.memoryStorage.articles = filteredArticles;
                 }
@@ -412,13 +434,13 @@ class KVStorageService {
             // 迁移文章
             const articles = await oldStorageService.loadArticles();
             if (articles.length > 0) {
-                await kv.set('articles', articles);
+                await kv.set('articles', JSON.stringify(articles));
                 console.log(`✅ 迁移了 ${articles.length} 篇文章`);
             }
             
             // 迁移统计
             const stats = await oldStorageService.getStats();
-            await kv.set('stats', stats);
+            await kv.set('stats', JSON.stringify(stats));
             console.log('✅ 迁移了统计数据');
             
             console.log('🎉 数据迁移完成');
