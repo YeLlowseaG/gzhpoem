@@ -32,6 +32,7 @@ body {
     background-color: var(--background-color);
     color: var(--text-primary);
     line-height: 1.6;
+    overflow-y: scroll; /* 强制显示滚动条，避免宽度跳动 */
 }
 
 /* 应用布局 */
@@ -56,6 +57,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: calc(100vw - 17px); /* 减去滚动条宽度，保持固定宽度 */
 }
 
 .logo {
@@ -115,6 +117,8 @@ body {
     margin: 0 auto;
     padding: 2rem 1rem;
     gap: 2rem;
+    width: calc(100vw - 17px); /* 固定宽度，减去滚动条 */
+    box-sizing: border-box;
 }
 
 /* 侧边栏 */
