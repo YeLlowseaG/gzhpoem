@@ -29,7 +29,7 @@ class AIService {
             }
         };
         
-        // 优先使用通义千问
+        // 优先使用DeepSeek（更快更便宜），通义千问备用
         this.currentProvider = this.findAvailableProvider();
         
         // 初始化辅助服务
@@ -51,12 +51,17 @@ class AIService {
      * 寻找可用的AI服务
      */
     findAvailableProvider() {
-        for (const [name, provider] of Object.entries(this.providers)) {
-            if (provider.key && provider.key.length > 10) {
+        // 优先级顺序：DeepSeek > OpenAI > 通义千问
+        const priority = ['deepseek', 'openai', 'qwen'];
+        
+        for (const name of priority) {
+            const provider = this.providers[name];
+            if (provider && provider.key && provider.key.length > 10) {
                 console.log(`✅ 找到可用的AI服务: ${name}`);
                 return name;
             }
         }
+        
         console.log('⚠️  未配置任何AI服务，将使用本地模板');
         return null;
     }
@@ -771,9 +776,14 @@ ${content || '（暂无具体内容）'}
 
             const specificScene = poetryScenes[title] || `${mood}的${imagery}场景`;
 
-            // 构建图片生成prompt
-            const imagePrompt = `${specificScene}，${artStyle}风格，${colorTone}色调，诗意美感，高质量，4k分辨率，中国古典美学，意境深远，构图优美`;
+            // 构建图片生成prompt - 确保所有变量都有值
+            const safeScene = specificScene || '诗意宁静的文字背景';
+            const safeStyle = artStyle || '中国水墨画';
+            const safeColor = colorTone || '温暖色调';
+            
+            const imagePrompt = `${safeScene}，${safeStyle}风格，${safeColor}，诗意美感，高质量，4k分辨率，中国古典美学，意境深远，构图优美`;
 
+            console.log('🎨 最终图片prompt:', imagePrompt);
             return imagePrompt;
 
         } catch (error) {
@@ -846,8 +856,8 @@ ${content || '（暂无具体内容）'}
      * 轮询图片生成结果
      */
     async pollImageGenerationResult(taskId, apiKey) {
-        const maxAttempts = 8; // 减少轮询次数，避免整体超时
-        const delay = 3000; // 3秒间隔，总共24秒超时
+        const maxAttempts = 5; // 进一步减少轮询次数
+        const delay = 2000; // 2秒间隔，总共10秒超时
 
         for (let i = 0; i < maxAttempts; i++) {
             try {

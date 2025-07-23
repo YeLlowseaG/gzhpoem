@@ -930,7 +930,7 @@ app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
                                     customPrompt: imagePrompt
                                 }),
                                 new Promise((_, reject) => 
-                                    setTimeout(() => reject(new Error('AI图片生成超时')), 30000)
+                                    setTimeout(() => reject(new Error('AI图片生成超时')), 15000)
                                 )
                             ]);
 
@@ -950,15 +950,21 @@ app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
                             }
                         } catch (aiError) {
                             console.warn(`AI图片生成失败: ${aiError.message}`);
-                            throw new Error('AI图片生成失败，降级到SVG');
+                            sendProgress(3 + i, `⚠️ 第${pageNum}张AI图片超时，自动降级到SVG...`);
+                            // 直接在这里生成SVG，不抛异常
+                            pageImage = await svgGenerator.generateSinglePageSVG({
+                                content: segments[i],
+                                title: i === 0 ? title : '',
+                                author: i === 0 ? author : '',
+                                template: template,
+                                pageNumber: pageNum,
+                                totalPages: segments.length
+                            });
+                            sendProgress(3 + i, `✅ 第${pageNum}张SVG图片生成成功！`);
                         }
                     } else {
-                        throw new Error('使用SVG生成');
-                    }
-                    
-                    if (!pageImage) {
-                        // 降级到SVG生成
-                        sendProgress(3 + i, `📝 第${pageNum}张图片降级到SVG生成...`);
+                        // 非AI模式，直接生成SVG
+                        sendProgress(3 + i, `📝 第${pageNum}张使用SVG模式生成...`);
                         pageImage = await svgGenerator.generateSinglePageSVG({
                             content: segments[i],
                             title: i === 0 ? title : '',
@@ -970,17 +976,59 @@ app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
                         sendProgress(3 + i, `✅ 第${pageNum}张SVG图片生成成功！`);
                     }
                     
+                    // 必须有图片结果才继续
                     if (pageImage) {
                         images.push(pageImage);
-                        // 发送单张图片结果
+                        // 发送单张图片结果，实时更新进度
                         sendProgress(3 + i, `🎉 第${pageNum}张图片完成！`, { 
                             image: pageImage,
                             completed: pageNum,
                             total: segments.length 
                         });
+                    } else {
+                        // 如果所有方式都失败了，生成错误占位
+                        sendProgress(3 + i, `❌ 第${pageNum}张图片所有方式都失败`);
+                        const errorImage = {
+                            error: true,
+                            content: segments[i],
+                            pageNumber: pageNum,
+                            width: 750,
+                            height: 1334,
+                            errorMessage: '图片生成失败'
+                        };
+                        images.push(errorImage);
                     }
                 } catch (error) {
-                    sendProgress(3 + i, `⚠️ 第${pageNum}张图片生成失败: ${error.message}`);
+                    console.error(`第${pageNum}张图片生成异常:`, error);
+                    // 强制生成SVG作为兜底
+                    try {
+                        sendProgress(3 + i, `🔧 第${pageNum}张图片异常，强制使用SVG兜底...`);
+                        const fallbackImage = await svgGenerator.generateSinglePageSVG({
+                            content: segments[i],
+                            title: i === 0 ? title : '',
+                            author: i === 0 ? author : '',
+                            template: template,
+                            pageNumber: pageNum,
+                            totalPages: segments.length
+                        });
+                        
+                        if (fallbackImage) {
+                            images.push(fallbackImage);
+                            sendProgress(3 + i, `✅ 第${pageNum}张SVG兜底图片生成成功！`);
+                        } else {
+                            // 最后的错误处理
+                            images.push({
+                                error: true,
+                                content: segments[i],
+                                pageNumber: pageNum,
+                                errorMessage: '所有生成方式都失败'
+                            });
+                            sendProgress(3 + i, `❌ 第${pageNum}张图片完全失败`);
+                        }
+                    } catch (fallbackError) {
+                        console.error(`SVG兜底也失败:`, fallbackError);
+                        sendProgress(3 + i, `❌ 第${pageNum}张图片所有方式都失败`);
+                    }
                 }
             }
 
