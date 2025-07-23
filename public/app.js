@@ -1860,7 +1860,20 @@ async function generateXiaoLvShuDirect() {
         eventSource.onerror = function(event) {
             console.error('EventSource失败:', event);
             eventSource.close();
-            app.showToast('error', '连接中断，请重试');
+            
+            // 如果已经有图片生成成功，显示部分结果
+            if (generatedImages.length > 0) {
+                app.showToast('warning', `连接中断，已生成${generatedImages.length}张图片`);
+                displayXiaoLvShuDirectResult({
+                    success: true,
+                    images: generatedImages,
+                    totalPages: generatedImages.length,
+                    template: template,
+                    partial: true
+                });
+            } else {
+                app.showToast('error', '连接中断，请重试或使用非AI模式');
+            }
             
             // 恢复按钮状态
             generateBtn.disabled = false;

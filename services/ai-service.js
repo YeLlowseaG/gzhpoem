@@ -846,8 +846,8 @@ ${content || '（暂无具体内容）'}
      * 轮询图片生成结果
      */
     async pollImageGenerationResult(taskId, apiKey) {
-        const maxAttempts = 15; // 增加轮询次数
-        const delay = 4000; // 4秒间隔，给AI更多生成时间
+        const maxAttempts = 8; // 减少轮询次数，避免整体超时
+        const delay = 3000; // 3秒间隔，总共24秒超时
 
         for (let i = 0; i < maxAttempts; i++) {
             try {

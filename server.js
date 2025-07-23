@@ -891,8 +891,17 @@ app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
             // 第1步：AI智能分段
             sendProgress(1, '🤖 AI正在智能分段中...');
             
-            const segments = await svgGenerator.intelligentSegmentation(content, template, aiService);
-            sendProgress(2, `✅ AI分段完成，共${segments.length}页`, { totalPages: segments.length });
+            let segments = await svgGenerator.intelligentSegmentation(content, template, aiService);
+            
+            // 限制分段数量，避免生成过多图片导致超时
+            const maxPages = useAIGeneration === 'true' ? 6 : 10; // AI模式最多6页，SVG模式最多10页
+            if (segments.length > maxPages) {
+                console.log(`⚠️ 分段过多(${segments.length}页)，限制为${maxPages}页`);
+                segments = segments.slice(0, maxPages);
+                sendProgress(2, `✅ AI分段完成，已限制为${segments.length}页以优化生成速度`, { totalPages: segments.length });
+            } else {
+                sendProgress(2, `✅ AI分段完成，共${segments.length}页`, { totalPages: segments.length });
+            }
 
             // 第2步：逐个生成图片
             const images = [];
@@ -907,27 +916,41 @@ app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
                         // 尝试AI图片生成
                         const imagePrompt = `${svgGenerator.templates[template].name}风格的文字卡片背景图，温暖色调，简洁美观，高质量，4k分辨率`;
                         
-                        const aiImageResult = await aiService.generateCoverImage({
-                            author: author || '诗词',
-                            title: `${title}-第${pageNum}页`,
-                            content: segments[i],
-                            style: template,
-                            customPrompt: imagePrompt
-                        });
+                        // 发送开始生成的心跳
+                        sendProgress(3 + i, `🎨 开始为第${pageNum}张生成AI图片，预计30秒...`);
+                        
+                        try {
+                            // 设置较短超时时间的AI图片生成
+                            const aiImageResult = await Promise.race([
+                                aiService.generateCoverImage({
+                                    author: author || '诗词',
+                                    title: `${title}-第${pageNum}页`,
+                                    content: segments[i],
+                                    style: template,
+                                    customPrompt: imagePrompt
+                                }),
+                                new Promise((_, reject) => 
+                                    setTimeout(() => reject(new Error('AI图片生成超时')), 30000)
+                                )
+                            ]);
 
-                        if (aiImageResult && aiImageResult.success) {
-                            pageImage = {
-                                aiGenerated: true,
-                                imageUrl: aiImageResult.imageUrl,
-                                dataUrl: aiImageResult.imageUrl,
-                                content: segments[i],
-                                pageNumber: pageNum,
-                                width: 750,
-                                height: 1334
-                            };
-                            sendProgress(3 + i, `✅ 第${pageNum}张AI图片生成成功！`);
-                        } else {
-                            throw new Error('AI图片生成失败');
+                            if (aiImageResult && aiImageResult.success) {
+                                pageImage = {
+                                    aiGenerated: true,
+                                    imageUrl: aiImageResult.imageUrl,
+                                    dataUrl: aiImageResult.imageUrl,
+                                    content: segments[i],
+                                    pageNumber: pageNum,
+                                    width: 750,
+                                    height: 1334
+                                };
+                                sendProgress(3 + i, `✅ 第${pageNum}张AI图片生成成功！`);
+                            } else {
+                                throw new Error('AI图片生成失败');
+                            }
+                        } catch (aiError) {
+                            console.warn(`AI图片生成失败: ${aiError.message}`);
+                            throw new Error('AI图片生成失败，降级到SVG');
                         }
                     } else {
                         throw new Error('使用SVG生成');
