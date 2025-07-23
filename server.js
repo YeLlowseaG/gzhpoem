@@ -122,7 +122,7 @@ app.post('/api/articles/generate', async (req, res) => {
     console.log('请求体:', JSON.stringify(req.body, null, 2));
     
     try {
-        const { author, title, style, keywords, content } = req.body;
+        const { author, title, style, keywords, content, customPrompt } = req.body;
         
         // 参数验证
         if (!author || !title) {
@@ -144,7 +144,8 @@ app.post('/api/articles/generate', async (req, res) => {
             title,
             style: style || 'popular',
             keywords,
-            content
+            content,
+            customPrompt
         });
         
         console.log('🎨 AI生成结果:', result.success ? '成功' : '失败');
@@ -329,7 +330,7 @@ app.delete('/api/articles/:id', async (req, res) => {
 
 // 生成爆款文（新版逻辑）
 app.post('/api/baokuan/generate', async (req, res) => {
-    const { url, manualContent } = req.body;
+    const { url, manualContent, customPrompts } = req.body;
     if (!url && !manualContent) {
         return res.json({ success: false, error: '缺少爆款文章链接或正文内容' });
     }
@@ -359,7 +360,9 @@ app.post('/api/baokuan/generate', async (req, res) => {
         // 3. AI提炼选题和关键词
         let topic = '', keywords = [];
         if (aiService.isConfigured()) {
-            const extractPrompt = `请阅读以下文章内容，提炼出一个最有爆款潜力的选题，并给出5个相关关键词。\n\n文章内容：${originContent.slice(0, 2000)}\n\n输出格式：\n选题：xxx\n关键词：xxx,xxx,xxx,xxx,xxx`;
+            const extractPrompt = customPrompts && customPrompts.extract ? 
+                customPrompts.extract.replace('{content}', originContent.slice(0, 2000)) :
+                `请阅读以下文章内容，提炼出一个最有爆款潜力的选题，并给出5个相关关键词。\n\n文章内容：${originContent.slice(0, 2000)}\n\n输出格式：\n选题：xxx\n关键词：xxx,xxx,xxx,xxx,xxx`;
             const aiExtract = await aiService.generateWithAI({
                 author: '', title: '', style: '', keywords: '', content: extractPrompt
             });

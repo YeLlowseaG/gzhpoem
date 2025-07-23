@@ -8,6 +8,7 @@ class PoemApp {
         this.currentArticle = null;
         this.articles = [];
         this.config = {};
+        this.prompts = this.getDefaultPrompts();
         this.init();
     }
 
@@ -16,6 +17,91 @@ class PoemApp {
         await this.checkServiceStatus();
         await this.loadConfig();
         await this.loadRecentArticles();
+        this.initializePrompts();
+    }
+
+    getDefaultPrompts() {
+        return {
+            poetry: `请为{author}的《{title}》创作一篇900-1200字的诗词赏析文章。
+
+重要要求：
+1. 必须先找到这首诗的准确原文，如果用户没有提供原文，请根据你的知识库找到正确的诗词内容
+2. 风格：{style}
+3. 文章结构：
+   - 吸引人的标题（例如："千古绝唱！李白《静夜思》背后的深意，读懂的人都哭了"）
+   - 诗词原文（完整准确）
+   - 创作背景
+   - 逐句深度赏析
+   - 艺术特色
+   - 情感主题
+   - 现代意义
+   - 结语
+4. 适合微信公众号发布，要有吸引力
+5. 使用markdown格式
+6. 字数控制在900-1200字
+
+{keywords}
+
+{content}
+
+请确保诗词原文的准确性，这是文章质量的基础。`,
+            
+            baokuan: {
+                extract: `请阅读以下文章内容，提炼出一个最有爆款潜力的选题，并给出5个相关关键词。
+
+文章内容：{content}
+
+输出格式：
+选题：xxx
+关键词：xxx,xxx,xxx,xxx,xxx`,
+                
+                generate: `请以"{topic}"为主题，结合以下关键词：{keywords}，创作一篇与中国诗词文化相关的原创文章，要求内容新颖、有深度、有诗意，适合公众号爆款。
+
+写作要求：
+1. 标题要吸引眼球，引起共鸣
+2. 内容要结合诗词文化，有文化底蕴
+3. 语言要生动有趣，贴近现代读者
+4. 结构清晰，逻辑性强
+5. 字数控制在800-1200字
+6. 适合微信公众号传播
+
+请创作一篇高质量的爆款文章。`
+            }
+        };
+    }
+
+    initializePrompts() {
+        // 从本地存储或配置中加载用户自定义提示词
+        const savedPrompts = localStorage.getItem('custom-prompts');
+        if (savedPrompts) {
+            try {
+                this.prompts = { ...this.prompts, ...JSON.parse(savedPrompts) };
+            } catch (error) {
+                console.error('加载自定义提示词失败:', error);
+            }
+        }
+        
+        // 初始化设置页面的提示词内容
+        this.updatePromptTextareas();
+    }
+
+    updatePromptTextareas() {
+        // 更新诗词赏析提示词
+        const poetryTextarea = document.getElementById('poetryPromptTemplate');
+        if (poetryTextarea) {
+            poetryTextarea.value = this.prompts.poetry;
+        }
+        
+        // 更新爆款文提示词
+        const baokuanExtractTextarea = document.getElementById('baokuanExtractTemplate');
+        if (baokuanExtractTextarea) {
+            baokuanExtractTextarea.value = this.prompts.baokuan.extract;
+        }
+        
+        const baokuanGenerateTextarea = document.getElementById('baokuanGenerateTemplate');
+        if (baokuanGenerateTextarea) {
+            baokuanGenerateTextarea.value = this.prompts.baokuan.generate;
+        }
     }
 
     bindEvents() {
@@ -229,7 +315,8 @@ class PoemApp {
                     title,
                     content,
                     style,
-                    keywords
+                    keywords,
+                    customPrompt: this.prompts.poetry
                 })
             });
             
@@ -269,7 +356,8 @@ class PoemApp {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     url,
-                    manualContent
+                    manualContent,
+                    customPrompts: this.prompts.baokuan
                 })
             });
             
@@ -985,6 +1073,8 @@ class PoemApp {
     // ==================== 设置功能 ====================
     showSettings() {
         document.getElementById('settingsModal').classList.add('active');
+        // 确保提示词内容已更新
+        this.updatePromptTextareas();
     }
 
     hideSettings() {
@@ -1171,6 +1261,65 @@ function uploadArticleFromModal(id) {
     closeArticleModal();
 }
 
+// 提示词管理相关函数
+function switchPromptTab(tabName) {
+    // 更新按钮状态
+    document.querySelectorAll('.prompt-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[onclick="switchPromptTab('${tabName}')"]`).classList.add('active');
+    
+    // 切换内容
+    document.querySelectorAll('.prompt-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(tabName + 'Prompt').classList.add('active');
+}
+
+function savePoetryPrompt() {
+    const promptText = document.getElementById('poetryPromptTemplate').value.trim();
+    if (!promptText) {
+        app.showToast('error', '提示词不能为空');
+        return;
+    }
+    
+    app.prompts.poetry = promptText;
+    app.savePrompts();
+    app.showToast('success', '诗词赏析提示词已保存');
+}
+
+function resetPoetryPrompt() {
+    if (confirm('确定要恢复默认的诗词赏析提示词吗？')) {
+        const defaultPrompts = app.getDefaultPrompts();
+        document.getElementById('poetryPromptTemplate').value = defaultPrompts.poetry;
+        app.showToast('info', '已恢复默认提示词');
+    }
+}
+
+function saveBaokuanPrompts() {
+    const extractText = document.getElementById('baokuanExtractTemplate').value.trim();
+    const generateText = document.getElementById('baokuanGenerateTemplate').value.trim();
+    
+    if (!extractText || !generateText) {
+        app.showToast('error', '提示词不能为空');
+        return;
+    }
+    
+    app.prompts.baokuan.extract = extractText;
+    app.prompts.baokuan.generate = generateText;
+    app.savePrompts();
+    app.showToast('success', '爆款文提示词已保存');
+}
+
+function resetBaokuanPrompts() {
+    if (confirm('确定要恢复默认的爆款文提示词吗？')) {
+        const defaultPrompts = app.getDefaultPrompts();
+        document.getElementById('baokuanExtractTemplate').value = defaultPrompts.baokuan.extract;
+        document.getElementById('baokuanGenerateTemplate').value = defaultPrompts.baokuan.generate;
+        app.showToast('info', '已恢复默认提示词');
+    }
+}
+
 // 补充缺失的方法
 PoemApp.prototype.loadWechatStatus = async function() {
     try {
@@ -1244,5 +1393,15 @@ PoemApp.prototype.refreshServerIp = async function() {
     } finally {
         refreshBtn.disabled = false;
         refreshBtn.textContent = originalText;
+    }
+};
+
+PoemApp.prototype.savePrompts = function() {
+    try {
+        localStorage.setItem('custom-prompts', JSON.stringify(this.prompts));
+        console.log('提示词已保存到本地存储');
+    } catch (error) {
+        console.error('保存提示词失败:', error);
+        this.showToast('error', '保存提示词失败');
     }
 };

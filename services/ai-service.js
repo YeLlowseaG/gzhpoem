@@ -187,13 +187,13 @@ class AIService {
     /**
      * 生成完整的公众号内容包（文章+标题+封面）
      */
-    async generateArticle({ author, title, style, keywords, content }) {
+    async generateArticle({ author, title, style, keywords, content, customPrompt }) {
         try {
             console.log(`🎯 开始生成完整内容包: ${author} - ${title}`);
             
             // 并行生成所有内容
             const [articleResult, titleResult, coverResult] = await Promise.allSettled([
-                this.generateArticleContent({ author, title, style, keywords, content }),
+                this.generateArticleContent({ author, title, style, keywords, content, customPrompt }),
                 this.titleGenerator.generateMultipleTitles(author, title, style, 3),
                 this.generateCoverImage({ author, title, content, style })
             ]);
@@ -243,11 +243,11 @@ class AIService {
     /**
      * 生成文章内容
      */
-    async generateArticleContent({ author, title, style, keywords, content }) {
+    async generateArticleContent({ author, title, style, keywords, content, customPrompt }) {
         try {
             // 如果有AI服务，优先使用AI
             if (this.currentProvider) {
-                const aiResult = await this.generateWithAI({ author, title, style, keywords, content });
+                const aiResult = await this.generateWithAI({ author, title, style, keywords, content, customPrompt });
                 if (aiResult.success) {
                     return aiResult;
                 }
@@ -267,14 +267,16 @@ class AIService {
     /**
      * 使用AI生成文章
      */
-    async generateWithAI({ author, title, style, keywords, content }) {
+    async generateWithAI({ author, title, style, keywords, content, customPrompt }) {
         const provider = this.providers[this.currentProvider];
         
         if (!provider || !provider.key) {
             throw new Error('AI服务未配置');
         }
 
-        const prompt = this.buildPrompt({ author, title, style, keywords, content });
+        const prompt = customPrompt ? 
+            this.buildCustomPrompt({ author, title, style, keywords, content, customPrompt }) :
+            this.buildPrompt({ author, title, style, keywords, content });
         
         try {
             console.log(`🤖 使用 ${this.currentProvider} 生成文章...`);
@@ -411,6 +413,30 @@ ${keywordHint}
 ${content ? `用户提供的诗词原文：\n${content}` : '注意：用户未提供原文，请根据你的知识找到正确的诗词原文'}
 
 请确保诗词原文的准确性，这是文章质量的基础。`;
+    }
+
+    /**
+     * 构建自定义提示词
+     */
+    buildCustomPrompt({ author, title, style, keywords, content, customPrompt }) {
+        const styleMap = {
+            'popular': '通俗易懂，贴近现代读者',
+            'literary': '文雅精致，具有古典美感',
+            'emotional': '情感丰富，容易引起共鸣',
+            'academic': '严谨客观，具有学术价值'
+        };
+
+        const styleDesc = styleMap[style] || styleMap.popular;
+        const keywordHint = keywords ? `重点关注：${keywords}` : '';
+        const contentHint = content ? `用户提供的诗词原文：\n${content}` : '注意：用户未提供原文，请根据你的知识找到正确的诗词原文';
+
+        // 替换模板变量
+        return customPrompt
+            .replace(/\{author\}/g, author)
+            .replace(/\{title\}/g, title)
+            .replace(/\{style\}/g, styleDesc)
+            .replace(/\{keywords\}/g, keywordHint)
+            .replace(/\{content\}/g, contentHint);
     }
 
     /**

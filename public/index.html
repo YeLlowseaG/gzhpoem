@@ -281,6 +281,7 @@
                 <div class="modal-body">
                     <div class="settings-tabs">
                         <button class="tab-btn active" onclick="switchSettingsTab('ai')">AI配置</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('prompts')">提示词管理</button>
                         <button class="tab-btn" onclick="switchSettingsTab('general')">通用设置</button>
                     </div>
                     
@@ -295,6 +296,61 @@
                             </select>
                         </div>
                         <!-- 更多AI配置选项 -->
+                    </div>
+                    
+                    <div id="promptsSettings" class="settings-tab">
+                        <h4>📝 提示词管理</h4>
+                        <p class="setting-description">自定义AI生成文章的提示词，优化生成质量</p>
+                        
+                        <div class="prompt-tabs">
+                            <button class="prompt-tab-btn active" onclick="switchPromptTab('poetry')">
+                                🌸 诗词赏析
+                            </button>
+                            <button class="prompt-tab-btn" onclick="switchPromptTab('baokuan')">
+                                🔥 爆款文
+                            </button>
+                        </div>
+                        
+                        <!-- 诗词赏析提示词 -->
+                        <div id="poetryPrompt" class="prompt-tab-content active">
+                            <div class="form-group">
+                                <label for="poetryPromptTemplate">诗词赏析提示词模板</label>
+                                <textarea id="poetryPromptTemplate" rows="15" placeholder="诗词赏析的AI提示词模板..."></textarea>
+                                <small>使用变量: {author}, {title}, {style}, {keywords}, {content}</small>
+                            </div>
+                            <div class="prompt-actions">
+                                <button class="btn btn-outline btn-sm" onclick="resetPoetryPrompt()">
+                                    🔄 恢复默认
+                                </button>
+                                <button class="btn btn-primary btn-sm" onclick="savePoetryPrompt()">
+                                    💾 保存
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 爆款文提示词 -->
+                        <div id="baokuanPrompt" class="prompt-tab-content">
+                            <div class="form-group">
+                                <label for="baokuanExtractTemplate">选题提炼提示词</label>
+                                <textarea id="baokuanExtractTemplate" rows="6" placeholder="从原文中提炼爆款选题的提示词..."></textarea>
+                                <small>用于从原文中提炼爆款选题和关键词</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="baokuanGenerateTemplate">文章生成提示词</label>
+                                <textarea id="baokuanGenerateTemplate" rows="8" placeholder="根据选题和关键词生成爆款文的提示词..."></textarea>
+                                <small>使用变量: {topic}, {keywords}</small>
+                            </div>
+                            
+                            <div class="prompt-actions">
+                                <button class="btn btn-outline btn-sm" onclick="resetBaokuanPrompts()">
+                                    🔄 恢复默认
+                                </button>
+                                <button class="btn btn-primary btn-sm" onclick="saveBaokuanPrompts()">
+                                    💾 保存
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     
                     <div id="generalSettings" class="settings-tab">
