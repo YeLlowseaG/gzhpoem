@@ -65,7 +65,10 @@ class ConfigService {
             console.log('✅ 配置加载完成');
         } catch (error) {
             console.log('📝 配置文件不存在，使用默认配置');
-            await this.saveConfig(this.defaultConfig);
+            // 在serverless环境下不尝试保存文件
+            if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+                await this.saveConfig(this.defaultConfig);
+            }
         }
     }
 
@@ -95,6 +98,12 @@ class ConfigService {
         try {
             this.config = config ? this.mergeConfig(this.defaultConfig, config) : this.config;
             
+            // 在Vercel等serverless环境下跳过文件保存
+            if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+                console.log('⚠️ Serverless环境下跳过配置文件保存');
+                return;
+            }
+            
             // 确保目录存在
             const dataDir = path.dirname(this.configFile);
             await fs.mkdir(dataDir, { recursive: true });
@@ -103,8 +112,8 @@ class ConfigService {
             
             console.log('✅ 配置保存成功');
         } catch (error) {
-            console.error('❌ 配置保存失败:', error);
-            throw error;
+            console.warn('⚠️ 配置保存失败，继续运行:', error.message);
+            // 不抛出错误，避免中断程序
         }
     }
 
