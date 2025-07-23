@@ -1392,6 +1392,16 @@ function clearImage() {
     app.showToast('info', '已清除图片');
 }
 
+// 文件转base64辅助函数
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
+}
+
 async function extractTextFromImage() {
     if (!app.uploadedImageFile) {
         app.showToast('error', '请先上传图片');
@@ -1406,13 +1416,17 @@ async function extractTextFromImage() {
         extractBtn.disabled = true;
         extractBtn.textContent = '🔍 识别中...';
         
-        // 创建FormData
-        const formData = new FormData();
-        formData.append('image', app.uploadedImageFile);
+        // 将文件转换为base64
+        const base64Image = await fileToBase64(app.uploadedImageFile);
         
         const response = await fetch('/api/ocr/extract', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                image: base64Image
+            })
         });
         
         const data = await response.json();

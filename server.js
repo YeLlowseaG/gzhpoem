@@ -326,6 +326,175 @@ app.delete('/api/articles/:id', async (req, res) => {
     }
 });
 
+// ==================== OCR 相关接口 ====================
+
+// OCR文字提取接口
+app.post('/api/ocr/extract', async (req, res) => {
+    try {
+        const { image } = req.body;
+        
+        if (!image) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少图片数据'
+            });
+        }
+        
+        console.log('🔍 开始OCR文字提取...');
+        
+        // 检查是否配置了通义千问OCR服务
+        if (!process.env.QWEN_API_KEY) {
+            return res.status(500).json({
+                success: false,
+                error: 'OCR服务未配置，请联系管理员配置QWEN_API_KEY'
+            });
+        }
+        
+        // 处理base64图片数据
+        let imageData = image;
+        if (image.startsWith('data:image/')) {
+            imageData = image.split(',')[1];
+        }
+        
+        // 调用通义千问OCR服务
+        const ocrResult = await performOCR(imageData);
+        
+        if (ocrResult.success) {
+            console.log('✅ OCR提取成功，文字长度:', ocrResult.text.length);
+            res.json({
+                success: true,
+                text: ocrResult.text,
+                confidence: ocrResult.confidence || 0.9
+            });
+        } else {
+            console.error('❌ OCR提取失败:', ocrResult.error);
+            res.status(500).json({
+                success: false,
+                error: 'OCR提取失败: ' + ocrResult.error
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ OCR接口错误:', error);
+        res.status(500).json({
+            success: false,
+            error: 'OCR服务异常: ' + error.message
+        });
+    }
+});
+
+/**
+ * 执行OCR文字识别
+ */
+async function performOCR(imageBase64) {
+    try {
+        const response = await axios.post(
+            'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+            {
+                model: 'qwen-vl-ocr',
+                input: {
+                    messages: [
+                        {
+                            role: 'user',
+                            content: [
+                                {
+                                    image: `data:image/jpeg;base64,${imageBase64}`
+                                },
+                                {
+                                    text: '请识别图片中的所有文字内容，按原始排版格式输出，保持段落和换行。'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                parameters: {
+                    result_format: 'message'
+                }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.QWEN_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 30000
+            }
+        );
+        
+        if (response.data.output && response.data.output.choices) {
+            const extractedText = response.data.output.choices[0].message.content;
+            return {
+                success: true,
+                text: extractedText.trim(),
+                confidence: 0.95
+            };
+        } else {
+            throw new Error('OCR服务返回格式异常');
+        }
+        
+    } catch (error) {
+        console.error('通义千问OCR调用失败:', error.message);
+        
+        // 降级到简单的文字提取（适用于简单图片）
+        try {
+            return await fallbackOCR(imageBase64);
+        } catch (fallbackError) {
+            return {
+                success: false,
+                error: `OCR失败: ${error.message}, 降级处理也失败: ${fallbackError.message}`
+            };
+        }
+    }
+}
+
+/**
+ * 降级OCR处理（使用通用视觉识别）
+ */
+async function fallbackOCR(imageBase64) {
+    const response = await axios.post(
+        'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+        {
+            model: 'qwen-vl-plus',
+            input: {
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                image: `data:image/jpeg;base64,${imageBase64}`
+                            },
+                            {
+                                text: '这是一张包含文字的图片，请仔细识别并提取图片中的所有文字内容。请按照原文的格式和段落结构输出，不要添加任何解释或分析。'
+                            }
+                        ]
+                    }
+                ]
+            },
+            parameters: {
+                result_format: 'message',
+                max_tokens: 2000
+            }
+        },
+        {
+            headers: {
+                'Authorization': `Bearer ${process.env.QWEN_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 30000
+        }
+    );
+    
+    if (response.data.output && response.data.output.choices) {
+        const content = response.data.output.choices[0].message.content;
+        return {
+            success: true,
+            text: content.trim(),
+            confidence: 0.85
+        };
+    } else {
+        throw new Error('降级OCR服务返回格式异常');
+    }
+}
+
 // ==================== 爆款文相关接口 ====================
 
 // 生成爆款文（新版逻辑）
