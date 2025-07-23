@@ -20,7 +20,7 @@ const WechatService = require('./services/wechat-service');
 const KVStorageService = require('./services/kv-storage-service');
 const ConfigService = require('./services/config-service');
 const SVGGenerator = require('./services/svg-generator');
-const HtmlImageGenerator = require('./services/html-image-generator');
+const CanvasImageGenerator = require('./services/canvas-image-generator');
 
 const app = express();
 const PORT = 8080;
@@ -31,7 +31,7 @@ const wechatService = new WechatService();
 const storageService = new KVStorageService();
 const configService = new ConfigService();
 const svgGenerator = new SVGGenerator();
-const htmlImageGenerator = new HtmlImageGenerator();
+const canvasImageGenerator = new CanvasImageGenerator();
 
 // 中间件
 app.use(cors());
@@ -952,44 +952,31 @@ app.post('/api/xiaolvshu/generate-stream', async (req, res) => {
                             }
                         } catch (aiError) {
                             console.warn(`AI图片生成失败: ${aiError.message}`);
-                            sendProgress(3 + i, `⚠️ 第${pageNum}张AI图片超时，自动降级到HTML生成...`);
-                            // 先尝试HTML图片生成
+                            sendProgress(3 + i, `⚠️ 第${pageNum}张AI图片超时，自动降级到Canvas生成...`);
+                            // 先尝试Canvas图片生成
                             try {
-                                const htmlImageResult = await htmlImageGenerator.generateImage(segments[i], {
+                                const canvasImageResult = await canvasImageGenerator.generateImage(segments[i], {
                                     template: template,
                                     pageNumber: pageNum,
                                     totalPages: segments.length
                                 });
                                 
-                                if (htmlImageResult.success) {
-                                    if (htmlImageResult.needsConversion) {
-                                        // 返回HTML供前端转换
-                                        pageImage = {
-                                            htmlGenerated: true,
-                                            html: htmlImageResult.html,
-                                            content: segments[i],
-                                            pageNumber: pageNum,
-                                            width: 750,
-                                            height: 1334
-                                        };
-                                    } else {
-                                        // 服务器端已生成图片
-                                        pageImage = {
-                                            htmlGenerated: true,
-                                            dataUrl: htmlImageResult.dataUrl,
-                                            content: segments[i],
-                                            pageNumber: pageNum,
-                                            width: htmlImageResult.width,
-                                            height: htmlImageResult.height
-                                        };
-                                    }
-                                    sendProgress(3 + i, `✅ 第${pageNum}张HTML图片生成成功！`);
+                                if (canvasImageResult.success) {
+                                    pageImage = {
+                                        canvasGenerated: true,
+                                        dataUrl: canvasImageResult.dataUrl,
+                                        content: segments[i],
+                                        pageNumber: pageNum,
+                                        width: canvasImageResult.width,
+                                        height: canvasImageResult.height
+                                    };
+                                    sendProgress(3 + i, `✅ 第${pageNum}张Canvas图片生成成功！`);
                                 } else {
-                                    throw new Error('HTML图片生成失败');
+                                    throw new Error('Canvas图片生成失败');
                                 }
-                            } catch (htmlError) {
-                                console.warn(`HTML图片生成失败: ${htmlError.message}`);
-                                sendProgress(3 + i, `⚠️ 第${pageNum}张HTML生成失败，最后尝试SVG...`);
+                            } catch (canvasError) {
+                                console.warn(`Canvas图片生成失败: ${canvasError.message}`);
+                                sendProgress(3 + i, `⚠️ 第${pageNum}张Canvas生成失败，最后尝试SVG...`);
                                 // 最后降级到SVG
                                 pageImage = await svgGenerator.generateSinglePageSVG({
                                     content: segments[i],
@@ -1003,44 +990,31 @@ app.post('/api/xiaolvshu/generate-stream', async (req, res) => {
                             }
                         }
                     } else {
-                        // 非AI模式，优先使用HTML生成
-                        sendProgress(3 + i, `📝 第${pageNum}张使用HTML模式生成...`);
+                        // 非AI模式，优先使用Canvas生成
+                        sendProgress(3 + i, `📝 第${pageNum}张使用Canvas模式生成...`);
                         try {
-                            const htmlImageResult = await htmlImageGenerator.generateImage(segments[i], {
+                            const canvasImageResult = await canvasImageGenerator.generateImage(segments[i], {
                                 template: template,
                                 pageNumber: pageNum,
                                 totalPages: segments.length
                             });
                             
-                            if (htmlImageResult.success) {
-                                if (htmlImageResult.needsConversion) {
-                                    // 返回HTML供前端转换
-                                    pageImage = {
-                                        htmlGenerated: true,
-                                        html: htmlImageResult.html,
-                                        content: segments[i],
-                                        pageNumber: pageNum,
-                                        width: 750,
-                                        height: 1334
-                                    };
-                                } else {
-                                    // 服务器端已生成图片
-                                    pageImage = {
-                                        htmlGenerated: true,
-                                        dataUrl: htmlImageResult.dataUrl,
-                                        content: segments[i],
-                                        pageNumber: pageNum,
-                                        width: htmlImageResult.width,
-                                        height: htmlImageResult.height
-                                    };
-                                }
-                                sendProgress(3 + i, `✅ 第${pageNum}张HTML图片生成成功！`);
+                            if (canvasImageResult.success) {
+                                pageImage = {
+                                    canvasGenerated: true,
+                                    dataUrl: canvasImageResult.dataUrl,
+                                    content: segments[i],
+                                    pageNumber: pageNum,
+                                    width: canvasImageResult.width,
+                                    height: canvasImageResult.height
+                                };
+                                sendProgress(3 + i, `✅ 第${pageNum}张Canvas图片生成成功！`);
                             } else {
-                                throw new Error('HTML图片生成失败');
+                                throw new Error('Canvas图片生成失败');
                             }
-                        } catch (htmlError) {
-                            console.warn(`HTML图片生成失败: ${htmlError.message}`);
-                            sendProgress(3 + i, `⚠️ 第${pageNum}张HTML生成失败，降级到SVG...`);
+                        } catch (canvasError) {
+                            console.warn(`Canvas图片生成失败: ${canvasError.message}`);
+                            sendProgress(3 + i, `⚠️ 第${pageNum}张Canvas生成失败，降级到SVG...`);
                             // 降级到SVG
                             pageImage = await svgGenerator.generateSinglePageSVG({
                                 content: segments[i],
@@ -1078,42 +1052,35 @@ app.post('/api/xiaolvshu/generate-stream', async (req, res) => {
                     }
                 } catch (error) {
                     console.error(`第${pageNum}张图片生成异常:`, error);
-                    // 先尝试HTML图片生成作为兜底
+                    // 先尝试Canvas图片生成作为兜底
                     try {
-                        sendProgress(3 + i, `🔧 第${pageNum}张图片异常，尝试HTML兜底...`);
-                        const htmlFallbackResult = await htmlImageGenerator.generateImage(segments[i], {
+                        sendProgress(3 + i, `🔧 第${pageNum}张图片异常，尝试Canvas兜底...`);
+                        const canvasFallbackResult = await canvasImageGenerator.generateImage(segments[i], {
                             template: template,
                             pageNumber: pageNum,
                             totalPages: segments.length
                         });
                         
-                        if (htmlFallbackResult.success) {
-                            const fallbackImage = htmlFallbackResult.needsConversion ? {
-                                htmlGenerated: true,
-                                html: htmlFallbackResult.html,
+                        if (canvasFallbackResult.success) {
+                            const fallbackImage = {
+                                canvasGenerated: true,
+                                dataUrl: canvasFallbackResult.dataUrl,
                                 content: segments[i],
                                 pageNumber: pageNum,
-                                width: 750,
-                                height: 1334
-                            } : {
-                                htmlGenerated: true,
-                                dataUrl: htmlFallbackResult.dataUrl,
-                                content: segments[i],
-                                pageNumber: pageNum,
-                                width: htmlFallbackResult.width,
-                                height: htmlFallbackResult.height
+                                width: canvasFallbackResult.width,
+                                height: canvasFallbackResult.height
                             };
                             
                             images.push(fallbackImage);
-                            sendProgress(3 + i, `✅ 第${pageNum}张HTML兜底图片生成成功！`);
+                            sendProgress(3 + i, `✅ 第${pageNum}张Canvas兜底图片生成成功！`);
                         } else {
-                            throw new Error('HTML兜底失败');
+                            throw new Error('Canvas兜底失败');
                         }
-                    } catch (htmlFallbackError) {
-                        console.warn(`HTML兜底失败: ${htmlFallbackError.message}`);
+                    } catch (canvasFallbackError) {
+                        console.warn(`Canvas兜底失败: ${canvasFallbackError.message}`);
                         // 最后尝试SVG兜底
                         try {
-                            sendProgress(3 + i, `🔧 第${pageNum}张HTML兜底失败，最后尝试SVG...`);
+                            sendProgress(3 + i, `🔧 第${pageNum}张Canvas兜底失败，最后尝试SVG...`);
                             const svgFallbackImage = await svgGenerator.generateSinglePageSVG({
                                 content: segments[i],
                                 title: i === 0 ? title : '',
