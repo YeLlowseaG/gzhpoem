@@ -1728,7 +1728,7 @@ function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
                                     `<img src="${image.imageUrl}" alt="第${pageNum}页" style="width: 100%; height: auto; border-radius: 8px;">` :
                                 image.htmlGenerated ? 
                                     (image.html ? 
-                                        `<div id="html-content-${i}" style="display: none;">${image.html}</div><canvas id="canvas-${i}" style="width: 100%; height: auto; border-radius: 8px;"></canvas><script>convertHtmlToCanvas(${i}, '${pageNum}');</script>` :
+                                        `<div id="html-content-${i}" style="display: none;">${image.html}</div><canvas id="canvas-${i}" style="width: 100%; height: auto; border-radius: 8px;"></canvas>` :
                                         `<img src="${image.dataUrl}" alt="第${pageNum}页" style="width: 100%; height: auto; border-radius: 8px;">`) :
                                     `<div style="width: 100%; height: 300px; background: url('data:image/svg+xml;base64,${image.base64}') center/contain no-repeat; border-radius: 8px;"></div>`
                                 }
@@ -1767,6 +1767,16 @@ function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
             </button>
         </div>
     `;
+    
+    // 手动调用HTML转Canvas函数
+    setTimeout(() => {
+        for (let i = 0; i < generatedImages.length; i++) {
+            const image = generatedImages[i];
+            if (image.htmlGenerated && image.html) {
+                convertHtmlToCanvas(i, image.pageNumber);
+            }
+        }
+    }, 100);
 }
 
 // 独立的小绿书生成函数（直接从表单输入）
@@ -1939,7 +1949,7 @@ function displayXiaoLvShuDirectResult(data) {
                     `<img src="${image.imageUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />` :
                 image.htmlGenerated ? 
                     (image.html ? 
-                        `<div id="html-content-final-${index}" style="display: none;">${image.html}</div><canvas id="canvas-final-${index}" style="width: 100%; height: auto; border-radius: 8px;"></canvas><script>convertHtmlToCanvasFinal(${index});</script>` :
+                        `<div id="html-content-final-${index}" style="display: none;">${image.html}</div><canvas id="canvas-final-${index}" style="width: 100%; height: auto; border-radius: 8px;"></canvas>` :
                         `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`) :
                     `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`
                 }
@@ -1976,6 +1986,15 @@ function displayXiaoLvShuDirectResult(data) {
     
     // 存储图片数据供后续使用
     app.currentXiaoLvShuImages = data.images;
+    
+    // 手动调用HTML转Canvas函数
+    setTimeout(() => {
+        data.images.forEach((image, index) => {
+            if (image.htmlGenerated && image.html) {
+                convertHtmlToCanvasFinal(index);
+            }
+        });
+    }, 100);
     
     // 滚动到结果区域
     outputElement.scrollIntoView({ behavior: 'smooth' });
