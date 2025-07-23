@@ -1038,6 +1038,10 @@ function saveSettings() {
     app.showToast('success', '设置保存成功');
 }
 
+function refreshServerIp() {
+    app.refreshServerIp();
+}
+
 // 补充缺失的方法
 PoemApp.prototype.loadWechatStatus = async function() {
     try {
@@ -1047,7 +1051,69 @@ PoemApp.prototype.loadWechatStatus = async function() {
         if (data.services && data.services.wechat !== undefined) {
             this.updateWechatStatus(data.services.wechat);
         }
+        
+        // 同时加载服务器IP信息
+        await this.loadServerIp();
     } catch (error) {
         console.error('加载微信状态失败:', error);
+    }
+};
+
+PoemApp.prototype.loadServerIp = async function() {
+    try {
+        const response = await fetch('/api/ip');
+        const data = await response.json();
+        
+        if (data.success) {
+            this.updateServerIpDisplay(data.currentIp, data.allResults);
+        } else {
+            this.updateServerIpDisplay('获取失败', []);
+        }
+    } catch (error) {
+        console.error('获取服务器IP失败:', error);
+        this.updateServerIpDisplay('获取失败', []);
+    }
+};
+
+PoemApp.prototype.updateServerIpDisplay = function(currentIp, allResults) {
+    const ipElement = document.getElementById('currentIp');
+    if (ipElement) {
+        if (currentIp === '获取失败') {
+            ipElement.textContent = '获取失败';
+            ipElement.style.color = 'var(--error-color)';
+        } else {
+            ipElement.textContent = currentIp;
+            ipElement.style.color = 'var(--success-color)';
+            ipElement.style.fontWeight = 'bold';
+        }
+    }
+    
+    // 如果有多个IP结果，显示详细信息
+    if (allResults && allResults.length > 1) {
+        const tooltip = allResults.map(result => 
+            `${result.service}: ${result.ip}`
+        ).join('\n');
+        
+        if (ipElement) {
+            ipElement.title = `多个检测源结果:\n${tooltip}`;
+        }
+    }
+};
+
+PoemApp.prototype.refreshServerIp = async function() {
+    const refreshBtn = document.getElementById('refreshIpBtn');
+    const originalText = refreshBtn.textContent;
+    
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = '刷新中...';
+    
+    try {
+        await this.loadServerIp();
+        this.showToast('success', 'IP信息已刷新');
+    } catch (error) {
+        this.showToast('error', '刷新失败: ' + error.message);
+    } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = originalText;
     }
 };

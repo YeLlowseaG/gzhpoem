@@ -300,6 +300,49 @@ body {
     margin-right: 0.5rem;
 }
 
+/* IP信息面板样式 */
+.ip-info-panel {
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ip-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.ip-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    min-width: 100px;
+}
+
+.ip-value {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: all;
+}
+
+.ip-value:hover {
+    background: var(--background-color);
+}
+
+.ip-note {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+}
+
 /* 生成文章界面 */
 .generate-container {
     display: grid;

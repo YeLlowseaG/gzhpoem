@@ -212,6 +212,22 @@
                                 </div>
                             </div>
                             
+                            <h3>服务器出口IP</h3>
+                            <div class="form-group">
+                                <div class="ip-info-panel">
+                                    <div class="ip-display" id="serverIpDisplay">
+                                        <span class="ip-label">当前出口IP:</span>
+                                        <span class="ip-value" id="currentIp">检查中...</span>
+                                        <button class="btn btn-sm btn-outline" onclick="refreshServerIp()" id="refreshIpBtn">
+                                            🔄 刷新
+                                        </button>
+                                    </div>
+                                    <div class="ip-note">
+                                        <small>请将此IP添加到微信公众平台的白名单中</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <button class="btn btn-primary" onclick="testWechatConnection()">
                                 🔗 测试连接
                             </button>
