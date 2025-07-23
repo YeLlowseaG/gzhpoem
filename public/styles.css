@@ -480,6 +480,75 @@ body {
     font-style: italic;
 }
 
+/* 图片上传样式 */
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius);
+    transition: all 0.2s;
+}
+
+.upload-area:hover {
+    border-color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.upload-placeholder {
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upload-placeholder:hover {
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.upload-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.upload-placeholder p {
+    margin: 0.5rem 0;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.upload-placeholder small {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.upload-preview {
+    padding: 1rem;
+    text-align: center;
+}
+
+.upload-preview img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.upload-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* OCR提取状态 */
+.extracting {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.extracting::after {
+    content: ' 识别中...';
+    color: var(--primary-color);
+}
+
 /* 生成文章界面 */
 .generate-container {
     display: grid;

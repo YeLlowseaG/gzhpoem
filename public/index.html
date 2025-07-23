@@ -126,13 +126,37 @@
                             <!-- 爆款文表单 -->
                             <div id="baokuanForm" class="form-mode" style="display: none;">
                                 <div class="form-group">
-                                    <label for="baokuanUrl">爆款文章链接 *</label>
-                                    <input type="url" id="baokuanUrl" placeholder="请输入爆款文章的完整链接" required>
+                                    <label for="baokuanUrl">爆款文章链接</label>
+                                    <input type="url" id="baokuanUrl" placeholder="请输入爆款文章的完整链接">
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label for="baokuanContent">手动输入正文内容（可选）</label>
-                                    <textarea id="baokuanContent" rows="8" placeholder="如果链接无法自动抓取内容，请在此粘贴爆款文章的正文文本"></textarea>
+                                    <label for="baokuanImage">上传图片内容</label>
+                                    <div class="upload-area" id="imageUploadArea">
+                                        <input type="file" id="baokuanImage" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                                        <div class="upload-placeholder" onclick="document.getElementById('baokuanImage').click()">
+                                            <div class="upload-icon">📷</div>
+                                            <p>点击上传图片</p>
+                                            <small>支持小红书截图、微信文章截图等</small>
+                                        </div>
+                                        <div class="upload-preview" id="imagePreview" style="display: none;">
+                                            <img id="previewImg" src="" alt="预览图片">
+                                            <div class="upload-actions">
+                                                <button type="button" class="btn btn-sm btn-outline" onclick="clearImage()">
+                                                    🗑️ 删除
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="extractTextFromImage()" id="extractBtn">
+                                                    🔍 提取文字
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="baokuanContent">手动输入正文内容</label>
+                                    <textarea id="baokuanContent" rows="8" placeholder="可以手动粘贴文章内容，或上传图片自动提取文字"></textarea>
+                                    <small>支持链接抓取、图片OCR识别、手动输入三种方式</small>
                                 </div>
                                 
                                 <button class="btn btn-primary btn-large" onclick="generateBaokuan()" id="generateBaokuanBtn">

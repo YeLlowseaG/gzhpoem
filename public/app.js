@@ -47,25 +47,41 @@ class PoemApp {
 请确保诗词原文的准确性，这是文章质量的基础。`,
             
             baokuan: {
-                extract: `请阅读以下文章内容，提炼出一个最有爆款潜力的选题，并给出5个相关关键词。
+                extract: `请深度分析以下爆款文章，提取其成功的爆点要素和写作技巧：
 
 文章内容：{content}
 
+请从以下维度进行分析：
+1. 爆款标题技巧（为什么这个标题吸引人？用了什么套路？）
+2. 开头抓人技巧（如何在前3句话抓住读者？）
+3. 情感触点分析（触动了读者什么情感？恐惧/焦虑/好奇/共鸣？）
+4. 内容结构特点（用了什么逻辑结构？对比/反转/递进？）
+5. 表达方式特色（语言风格、修辞手法、互动元素）
+6. 传播引爆点（什么地方最容易被转发/讨论？）
+
 输出格式：
-选题：xxx
-关键词：xxx,xxx,xxx,xxx,xxx`,
+标题技巧：xxx
+开头套路：xxx  
+情感触点：xxx
+结构特点：xxx
+表达特色：xxx
+引爆点：xxx`,
                 
-                generate: `请以"{topic}"为主题，结合以下关键词：{keywords}，创作一篇与中国诗词文化相关的原创文章，要求内容新颖、有深度、有诗意，适合公众号爆款。
+                generate: `请借鉴以下爆款写作技巧，创作一篇诗词文化领域的爆款文章：
 
-写作要求：
-1. 标题要吸引眼球，引起共鸣
-2. 内容要结合诗词文化，有文化底蕴
-3. 语言要生动有趣，贴近现代读者
-4. 结构清晰，逻辑性强
+分析出的爆款要素：{keywords}
+
+创作要求：
+1. 严格模仿原文的标题技巧，但内容改为诗词相关
+2. 借鉴原文的开头套路和情感触点
+3. 使用相同的内容结构和表达方式
+4. 保持原文的传播引爆点，但融入诗词文化
 5. 字数控制在800-1200字
-6. 适合微信公众号传播
+6. 目标：让不懂诗词的人也想转发
 
-请创作一篇高质量的爆款文章。`
+核心思路：不是普通的诗词科普，而是借鉴爆文套路的诗词爆款文！
+
+请开始创作：`
             }
         };
     }
@@ -791,7 +807,7 @@ class PoemApp {
         listElement.innerHTML = articles.map(article => `
             <div class="article-item">
                 <div class="article-meta">
-                    <h4 class="article-title">${article.metadata.author} - ${article.metadata.title}</h4>
+                    <h4 class="article-title">${this.getDisplayTitle(article)}</h4>
                     <div class="article-info">
                         ${new Date(article.createdAt).toLocaleDateString()} | 
                         ${article.metadata.style} | 
@@ -816,6 +832,23 @@ class PoemApp {
         `).join('');
         
         this.displayPagination(pagination);
+    }
+
+    getDisplayTitle(article) {
+        // 优先显示AI生成的爆款标题
+        if (article.titles && article.titles.length > 0) {
+            // 诗词赏析：显示第一个生成的爆款标题
+            return article.titles[0];
+        } else if (article.topic) {
+            // 爆款文：显示提炼的选题
+            return article.topic;
+        } else if (article.metadata?.type === 'baokuan') {
+            // 爆款文但没有topic的情况
+            return '爆款文：' + (article.metadata.title || '未知标题');
+        } else {
+            // 默认情况：显示传统格式
+            return `${article.metadata?.author || '未知作者'} - ${article.metadata?.title || '未知标题'}`;
+        }
     }
 
     displayPagination(pagination) {
@@ -1317,6 +1350,92 @@ function resetBaokuanPrompts() {
         document.getElementById('baokuanExtractTemplate').value = defaultPrompts.baokuan.extract;
         document.getElementById('baokuanGenerateTemplate').value = defaultPrompts.baokuan.generate;
         app.showToast('info', '已恢复默认提示词');
+    }
+}
+
+// 图片上传和OCR相关函数
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+        app.showToast('error', '请上传图片文件');
+        return;
+    }
+    
+    // 检查文件大小 (最大10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        app.showToast('error', '图片文件不能超过10MB');
+        return;
+    }
+    
+    // 显示预览
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('previewImg').src = e.target.result;
+        document.getElementById('imagePreview').style.display = 'block';
+        document.querySelector('.upload-placeholder').style.display = 'none';
+        
+        // 存储文件供后续OCR使用
+        app.uploadedImageFile = file;
+        app.showToast('success', '图片上传成功，点击"提取文字"进行识别');
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearImage() {
+    document.getElementById('baokuanImage').value = '';
+    document.getElementById('imagePreview').style.display = 'none';
+    document.querySelector('.upload-placeholder').style.display = 'block';
+    app.uploadedImageFile = null;
+    app.showToast('info', '已清除图片');
+}
+
+async function extractTextFromImage() {
+    if (!app.uploadedImageFile) {
+        app.showToast('error', '请先上传图片');
+        return;
+    }
+    
+    const extractBtn = document.getElementById('extractBtn');
+    const originalText = extractBtn.textContent;
+    
+    try {
+        extractBtn.classList.add('extracting');
+        extractBtn.disabled = true;
+        extractBtn.textContent = '🔍 识别中...';
+        
+        // 创建FormData
+        const formData = new FormData();
+        formData.append('image', app.uploadedImageFile);
+        
+        const response = await fetch('/api/ocr/extract', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 将提取的文字填入文本框
+            const contentTextarea = document.getElementById('baokuanContent');
+            contentTextarea.value = data.text;
+            
+            app.showToast('success', `成功识别 ${data.text.length} 个字符`);
+            
+            // 自动滚动到文本框
+            contentTextarea.scrollIntoView({ behavior: 'smooth' });
+            contentTextarea.focus();
+        } else {
+            app.showToast('error', '文字识别失败: ' + data.error);
+        }
+    } catch (error) {
+        app.showToast('error', '文字识别失败: ' + error.message);
+    } finally {
+        extractBtn.classList.remove('extracting');
+        extractBtn.disabled = false;
+        extractBtn.textContent = originalText;
     }
 }
 

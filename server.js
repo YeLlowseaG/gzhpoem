@@ -357,25 +357,29 @@ app.post('/api/baokuan/generate', async (req, res) => {
             originContent = originContent.replace(/\s+/g, ' ').trim();
             originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
         }
-        // 3. AI提炼选题和关键词
-        let topic = '', keywords = [];
+        // 3. AI分析爆款要素和写作技巧
+        let topic = '', keywords = [], explosiveElements = '';
         if (aiService.isConfigured()) {
             const extractPrompt = customPrompts && customPrompts.extract ? 
                 customPrompts.extract.replace('{content}', originContent.slice(0, 2000)) :
-                `请阅读以下文章内容，提炼出一个最有爆款潜力的选题，并给出5个相关关键词。\n\n文章内容：${originContent.slice(0, 2000)}\n\n输出格式：\n选题：xxx\n关键词：xxx,xxx,xxx,xxx,xxx`;
+                `请深度分析以下爆款文章，提取其成功的爆点要素和写作技巧：\n\n文章内容：${originContent.slice(0, 2000)}\n\n请从以下维度进行分析：\n1. 爆款标题技巧（为什么这个标题吸引人？用了什么套路？）\n2. 开头抓人技巧（如何在前3句话抓住读者？）\n3. 情感触点分析（触动了读者什么情感？恐惧/焦虑/好奇/共鸣？）\n4. 内容结构特点（用了什么逻辑结构？对比/反转/递进？）\n5. 表达方式特色（语言风格、修辞手法、互动元素）\n6. 传播引爆点（什么地方最容易被转发/讨论？）\n\n输出格式：\n标题技巧：xxx\n开头套路：xxx\n情感触点：xxx\n结构特点：xxx\n表达特色：xxx\n引爆点：xxx`;
+            
             const aiExtract = await aiService.generateWithAI({
                 author: '', title: '', style: '', keywords: '', content: extractPrompt
             });
+            
             if (aiExtract && aiExtract.content) {
-                const topicMatch = aiExtract.content.match(/选题[:：]\s*(.+)/);
-                const keywordsMatch = aiExtract.content.match(/关键词[:：]\s*([\u4e00-\u9fa5A-Za-z0-9,，]+)/);
-                topic = topicMatch ? topicMatch[1].trim() : '';
-                keywords = keywordsMatch ? keywordsMatch[1].replace(/，/g, ',').split(',').map(s => s.trim()) : [];
+                explosiveElements = aiExtract.content;
+                // 从分析结果中提取核心信息作为topic和keywords
+                const titleMatch = aiExtract.content.match(/标题技巧[:：]\s*(.+)/);
+                const emotionMatch = aiExtract.content.match(/情感触点[:：]\s*(.+)/);
+                topic = titleMatch ? `借鉴爆款技巧的诗词文章` : '诗词爆款文';
+                keywords = explosiveElements.split('\n').filter(line => line.includes('：')).map(line => line.split('：')[1]?.trim()).filter(Boolean);
             }
         }
         // 4. AI生成诗词相关爆款文
         let finalContent = '';
-        if (aiService.isConfigured() && topic) {
+        if (aiService.isConfigured() && explosiveElements) {
             const genPrompt = `请以“${topic}”为主题，结合以下关键词：${keywords.join('、')}，创作一篇与中国诗词文化相关的原创文章，要求内容新颖、有深度、有诗意，适合公众号爆款。`;
             const aiGen = await aiService.generateWithAI({
                 author: '', title: topic, style: 'popular', keywords: keywords.join(','), content: genPrompt
