@@ -150,7 +150,13 @@ class SVGGenerator {
 
         // 降级到基础分段算法
         console.log('📝 使用基础分段算法...');
-        return this.basicSegmentation(cleanContent, maxChars);
+        const basicSegments = this.basicSegmentation(cleanContent, maxChars);
+        console.log(`📝 基础分段结果: ${basicSegments.length}段`);
+        if (basicSegments.length === 0) {
+            console.error('❌ 基础分段也失败了，返回原文');
+            return [cleanContent];
+        }
+        return basicSegments;
     }
 
     /**

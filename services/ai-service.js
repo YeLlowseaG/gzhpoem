@@ -51,8 +51,8 @@ class AIService {
      * 寻找可用的AI服务
      */
     findAvailableProvider() {
-        // 优先级顺序：DeepSeek > OpenAI > 通义千问
-        const priority = ['deepseek', 'openai', 'qwen'];
+        // 优先级顺序：通义千问 > OpenAI > DeepSeek
+        const priority = ['qwen', 'openai', 'deepseek'];
         
         for (const name of priority) {
             const provider = this.providers[name];
