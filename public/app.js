@@ -1699,6 +1699,7 @@ async function generateXiaoLvShuDirect() {
     const author = document.getElementById('xiaolvshuAuthor').value.trim() || '';
     const content = document.getElementById('xiaolvshuContent').value.trim();
     const template = document.getElementById('xiaolvshuTemplate').value;
+    const useAIGeneration = document.getElementById('useAIGeneration').checked;
     
     if (!content) {
         app.showToast('error', '请输入要转换的文本内容');
@@ -1711,15 +1712,18 @@ async function generateXiaoLvShuDirect() {
     try {
         // 显示加载状态
         generateBtn.disabled = true;
-        generateBtn.textContent = '📸 生成中...';
+        generateBtn.textContent = useAIGeneration ? '🤖 AI生成中...' : '📸 生成中...';
         
         // 显示加载状态到输出区域
         document.getElementById('loading').style.display = 'flex';
-        document.getElementById('loading').querySelector('p').textContent = 'AI正在智能分段并生成图片，请稍候...';
+        const loadingText = useAIGeneration ? 
+            'AI正在智能分段排版并生成精美图片，请耐心等待...' : 
+            'AI正在智能分段并生成SVG图片，请稍候...';
+        document.getElementById('loading').querySelector('p').textContent = loadingText;
         document.getElementById('output').style.display = 'none';
         document.getElementById('outputPlaceholder').style.display = 'none';
         
-        console.log('📸 开始生成小绿书图片...');
+        console.log('📸 开始生成小绿书图片...', useAIGeneration ? '(AI完全生成模式)' : '(SVG模板模式)');
         
         const response = await fetch('/api/xiaolvshu/generate', {
             method: 'POST',
@@ -1730,7 +1734,8 @@ async function generateXiaoLvShuDirect() {
                 content: content,
                 title: title,
                 author: author,
-                template: template
+                template: template,
+                useAIGeneration: useAIGeneration
             })
         });
         

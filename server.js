@@ -853,7 +853,7 @@ app.post('/api/wechat/upload', async (req, res) => {
 // 生成小绿书图片
 app.post('/api/xiaolvshu/generate', async (req, res) => {
     try {
-        const { content, title, author, template = 'classic' } = req.body;
+        const { content, title, author, template = 'classic', useAIGeneration = false } = req.body;
         
         if (!content) {
             return res.status(400).json({
@@ -865,13 +865,15 @@ app.post('/api/xiaolvshu/generate', async (req, res) => {
         console.log('📸 开始生成小绿书图片...');
         console.log('📝 内容长度:', content.length);
         console.log('🎨 使用模板:', template);
+        console.log('🤖 AI生成模式:', useAIGeneration);
         
-        // 生成多张SVG图片（支持AI智能分段）
+        // 生成多张图片（支持AI智能分段和AI图片生成）
         const result = await svgGenerator.generateImages(content, {
             title: title || '诗词赏析',
             author: author || '',
             template: template,
-            aiService: aiService  // 传递AI服务用于智能分段
+            aiService: aiService,  // 传递AI服务用于智能分段
+            useAIGeneration: useAIGeneration  // 是否使用完全AI生成
         });
         
         if (result.success) {

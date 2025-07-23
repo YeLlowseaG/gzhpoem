@@ -64,11 +64,18 @@ class SVGGenerator {
                 title = '诗词赏析',
                 author = '',
                 template = 'classic',
-                aiService = null
+                aiService = null,
+                useAIGeneration = false  // 新增：是否使用完全AI生成
             } = options;
 
-            console.log('🎨 开始生成小绿书SVG图片...');
+            console.log('🎨 开始生成小绿书图片...');
             console.log('📝 内容长度:', content.length);
+            console.log('🤖 AI生成模式:', useAIGeneration ? '完全AI生成' : 'SVG模板生成');
+
+            // 如果启用完全AI生成
+            if (useAIGeneration && aiService && aiService.isConfigured()) {
+                return await this.generateWithFullAI(content, { title, author, template, aiService });
+            }
 
             // 1. 智能分段（支持AI）
             const segments = await this.intelligentSegmentation(content, template, aiService);
@@ -147,33 +154,40 @@ class SVGGenerator {
     }
 
     /**
-     * AI智能分段
+     * AI智能分段与排版
      */
     async aiSmartSegmentation(content, maxCharsPerPage, aiService) {
-        const prompt = `请帮我将以下文章内容智能分段，用于制作图片卡片：
+        const prompt = `请帮我将以下文章内容智能分段并优化排版，用于制作手机端图片卡片（宽度750px）：
 
-文章内容：
+原文内容：
 ${content}
 
-分段要求：
-1. 每段控制在${maxCharsPerPage}字符以内（建议${Math.floor(maxCharsPerPage * 0.8)}-${maxCharsPerPage}字符）
-2. 在语义完整的位置分段，不要切断句子或段落
-3. 保持内容的逻辑连贯性
-4. 确保每段都有相对完整的主题
-5. 分段数量适中，便于制作图片卡片
+任务要求：
+1. **智能分段**：每段控制在${Math.floor(maxCharsPerPage * 0.8)}-${maxCharsPerPage}字符，在语义完整位置分段
+2. **排版优化**：每行控制在25-30个字符以内，确保手机端阅读舒适
+3. **内容清理**：移除多余的链接、图片标记等干扰内容
+4. **格式美化**：保持段落结构清晰，适当使用空行分隔
 
-请直接输出分段结果，每段之间用"---"分隔，不要添加任何解释或标号。
+输出格式：每段之间用"---"分隔，段内文字按行排列，每行不超过30字符
 
-格式示例：
-第一段内容...
+示例输出：
+身安不如心安，屋宽不如心宽。
+——《增广贤文》
+
+很多人到死也没弄明白，自己为什么
+会生病？大多数的疾病，都是由于家
+庭不和，亲人之间的情绪造成的。
 
 ---
 
-第二段内容...
+当你不开心的时候，就想想自己还有
+多少天可以折腾，还有多少时间能你
+挥霍。人一旦没了健康，伴侣、孩子
+或许都不是你的。
 
 ---
 
-第三段内容...`;
+请开始处理：`;
 
         const result = await aiService.generateWithAI({
             author: '', 
@@ -245,6 +259,120 @@ ${content}
         }
 
         return segments;
+    }
+
+    /**
+     * 完全AI生成模式 - 让AI处理分段、排版和图片生成
+     */
+    async generateWithFullAI(content, options) {
+        const { title, author, template, aiService } = options;
+        
+        try {
+            console.log('🤖 启动完全AI生成模式...');
+            
+            // 第一步：AI智能分段和排版
+            const segments = await this.aiSmartSegmentation(content, this.templates[template].maxCharsPerPage, aiService);
+            
+            if (!segments || segments.length === 0) {
+                throw new Error('AI分段失败');
+            }
+
+            console.log(`📄 AI分段完成，共${segments.length}页`);
+
+            // 第二步：为每个分段生成AI图片
+            const images = [];
+            for (let i = 0; i < segments.length; i++) {
+                const segment = segments[i];
+                
+                try {
+                    console.log(`🎨 正在为第${i + 1}页生成AI图片...`);
+                    
+                    // 为这一页内容生成专门的图片
+                    const imagePrompt = `请为以下文字内容设计一张精美的手机端阅读卡片图片（750x1334px）：
+
+内容：
+${segment}
+
+设计要求：
+1. 背景：${this.templates[template].name}风格，使用温暖的色调
+2. 文字：${this.templates[template].contentSize}px字体，颜色${this.templates[template].textColor}
+3. 排版：文字居中偏上，留出足够边距，行间距适中
+4. 装饰：适当添加简约的装饰元素，如边框、花纹等
+5. 页码：右下角显示"${i + 1}/${segments.length}"
+${title ? `6. 标题：${i === 0 ? `顶部显示"${title}"` : ''}` : ''}
+${author ? `7. 作者：${i === 0 ? `标题下方显示"${author}"` : ''}` : ''}
+
+请生成高质量的图片，适合在手机上阅读和分享。`;
+
+                    // 调用AI图片生成
+                    const aiImageResult = await aiService.generateCoverImage({
+                        author: author || '诗词',
+                        title: `${title}-第${i + 1}页`,
+                        content: segment,
+                        style: template,
+                        customPrompt: imagePrompt
+                    });
+
+                    if (aiImageResult && aiImageResult.success) {
+                        images.push({
+                            aiGenerated: true,
+                            imageUrl: aiImageResult.url,
+                            dataUrl: aiImageResult.url,
+                            content: segment,
+                            pageNumber: i + 1,
+                            width: 750,
+                            height: 1334
+                        });
+                        console.log(`✅ 第${i + 1}页AI图片生成成功`);
+                    } else {
+                        // AI图片生成失败，降级到SVG
+                        console.log(`⚠️ 第${i + 1}页AI图片生成失败，降级到SVG`);
+                        const svgImage = await this.generateSinglePageSVG({
+                            content: segment,
+                            title: i === 0 ? title : '',
+                            author: i === 0 ? author : '',
+                            template: template,
+                            pageNumber: i + 1,
+                            totalPages: segments.length
+                        });
+                        
+                        if (svgImage) {
+                            images.push(svgImage);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`❌ 第${i + 1}页生成失败:`, error);
+                    // 降级到SVG生成
+                    const svgImage = await this.generateSinglePageSVG({
+                        content: segment,
+                        title: i === 0 ? title : '',
+                        author: i === 0 ? author : '',
+                        template: template,
+                        pageNumber: i + 1,
+                        totalPages: segments.length
+                    });
+                    
+                    if (svgImage) {
+                        images.push(svgImage);
+                    }
+                }
+            }
+
+            console.log('🎉 完全AI生成完成, 共', images.length, '张图片');
+            return {
+                success: true,
+                images: images,
+                totalPages: images.length,
+                template: this.templates[template].name,
+                generationMode: 'Full AI'
+            };
+
+        } catch (error) {
+            console.error('❌ 完全AI生成失败:', error);
+            // 降级到常规SVG生成
+            console.log('📝 降级到SVG生成模式...');
+            return await this.generateImages(content, { ...options, useAIGeneration: false });
+        }
     }
 
     /**
