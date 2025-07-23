@@ -1726,8 +1726,8 @@ function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
                             <div class="xiaolvshu-image-content">
                                 ${image.aiGenerated ? 
                                     `<img src="${image.imageUrl}" alt="第${pageNum}页" style="width: 100%; height: auto; border-radius: 8px;">` :
-                                image.canvasGenerated ? 
-                                    `<img src="${image.dataUrl}" alt="第${pageNum}页" style="width: 100%; height: auto; border-radius: 8px;">` :
+                                image.frontendCanvas ? 
+                                    `<div class="canvas-placeholder" data-index="${i}" style="width: 100%; height: 300px; background: #f5f5f5; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666;">前端生成中...</div>` :
                                     `<div style="width: 100%; height: 300px; background: url('data:image/svg+xml;base64,${image.base64}') center/contain no-repeat; border-radius: 8px;"></div>`
                                 }
                             </div>
@@ -1765,6 +1765,16 @@ function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
             </button>
         </div>
     `;
+    
+    // 触发前端Canvas生成
+    setTimeout(() => {
+        for (let i = 0; i < generatedImages.length; i++) {
+            const image = generatedImages[i];
+            if (image.frontendCanvas && !image.dataUrl) {
+                generateCanvasImage(image, i);
+            }
+        }
+    }, 100);
 }
 
 // 独立的小绿书生成函数（直接从表单输入）
@@ -1935,10 +1945,8 @@ function displayXiaoLvShuDirectResult(data) {
                 <div class="xiaolvshu-page-number">第 ${image.pageNumber} 页</div>
                 ${image.aiGenerated ? 
                     `<img src="${image.imageUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />` :
-                image.canvasGenerated ? 
-                    (image.needsFrontendGeneration ? 
-                        `<div style="width: 100%; height: 300px; background: #f5f5f5; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666;">前端生成中...</div>` :
-                        `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`) :
+                image.frontendCanvas ? 
+                    `<div class="canvas-placeholder" data-index="${index}" style="width: 100%; height: 300px; background: #f5f5f5; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666;">前端生成中...</div>` :
                     `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`
                 }
                 <div class="xiaolvshu-image-actions">
@@ -1975,10 +1983,10 @@ function displayXiaoLvShuDirectResult(data) {
     // 存储图片数据供后续使用
     app.currentXiaoLvShuImages = data.images;
     
-    // 处理Canvas生成的图片
+    // 处理前端Canvas生成的图片
     setTimeout(() => {
         data.images.forEach((image, index) => {
-            if (image.canvasGenerated && (image.needsFrontendGeneration || !image.dataUrl)) {
+            if (image.frontendCanvas) {
                 // 前端生成Canvas图片
                 generateCanvasImageFinal(image, index);
             }
@@ -2116,8 +2124,8 @@ class FrontendCanvasGenerator {
 // 创建全局Canvas生成器实例
 const frontendCanvasGenerator = new FrontendCanvasGenerator();
 
-// 生成Canvas图片
-function generateCanvasImageFinal(imageData, index) {
+// 生成Canvas图片 (通用函数)
+function generateCanvasImage(imageData, index) {
     try {
         const dataUrl = frontendCanvasGenerator.generateImage(
             imageData.content, 
@@ -2129,19 +2137,38 @@ function generateCanvasImageFinal(imageData, index) {
         // 更新图片数据
         if (app.currentXiaoLvShuImages && app.currentXiaoLvShuImages[index]) {
             app.currentXiaoLvShuImages[index].dataUrl = dataUrl;
-            app.currentXiaoLvShuImages[index].needsFrontendGeneration = false;
+            app.currentXiaoLvShuImages[index].frontendCanvas = false; // 标记已生成
+        }
+        
+        // 更新页面显示 - 查找占位符
+        const placeholderDiv = document.querySelector(`.canvas-placeholder[data-index="${index}"]`);
+        if (placeholderDiv) {
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.alt = `第${imageData.pageNumber}页`;
+            img.style.cssText = 'width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+            placeholderDiv.parentNode.replaceChild(img, placeholderDiv);
+            console.log(`📱 页面显示已更新 (第${imageData.pageNumber}页)`);
+        } else {
+            console.warn(`❌ 找不到占位符: .canvas-placeholder[data-index="${index}"]`);
+            // 备用方案：查找所有含有"前端生成中"的div
+            const allPlaceholders = document.querySelectorAll('div[style*="前端生成中"]');
+            console.log(`🔍 找到 ${allPlaceholders.length} 个占位符`);
             
-            // 更新页面显示
-            const cardElement = document.querySelector(`.xiaolvshu-image-card:nth-child(${index + 1})`);
-            if (cardElement) {
-                // 找到占位符div并替换为img
-                const placeholderDiv = cardElement.querySelector('div[style*="前端生成中"]');
-                if (placeholderDiv) {
-                    const img = document.createElement('img');
-                    img.src = dataUrl;
-                    img.alt = `第${imageData.pageNumber}页`;
-                    img.style.cssText = 'width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
-                    placeholderDiv.parentNode.replaceChild(img, placeholderDiv);
+            // 尝试根据页码匹配
+            for (const placeholder of allPlaceholders) {
+                const card = placeholder.closest('.xiaolvshu-image-card');
+                if (card) {
+                    const pageNumberElement = card.querySelector('.xiaolvshu-page-number');
+                    if (pageNumberElement && pageNumberElement.textContent.includes(`${imageData.pageNumber}`)) {
+                        const img = document.createElement('img');
+                        img.src = dataUrl;
+                        img.alt = `第${imageData.pageNumber}页`;
+                        img.style.cssText = 'width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+                        placeholder.parentNode.replaceChild(img, placeholder);
+                        console.log(`✅ 备用方案更新成功 (第${imageData.pageNumber}页)`);
+                        break;
+                    }
                 }
             }
         }
@@ -2150,6 +2177,11 @@ function generateCanvasImageFinal(imageData, index) {
     } catch (error) {
         console.error(`前端Canvas生成失败 (第${imageData.pageNumber}页):`, error);
     }
+}
+
+// 最终结果页面的Canvas图片生成
+function generateCanvasImageFinal(imageData, index) {
+    generateCanvasImage(imageData, index);
 }
 
 // 补充缺失的方法

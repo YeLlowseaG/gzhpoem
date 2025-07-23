@@ -952,84 +952,32 @@ app.post('/api/xiaolvshu/generate-stream', async (req, res) => {
                             }
                         } catch (aiError) {
                             console.warn(`AI图片生成失败: ${aiError.message}`);
-                            sendProgress(3 + i, `⚠️ 第${pageNum}张AI图片超时，自动降级到Canvas生成...`);
-                            // 先尝试Canvas图片生成
-                            try {
-                                const canvasImageResult = await canvasImageGenerator.generateImage(segments[i], {
-                                    template: template,
-                                    pageNumber: pageNum,
-                                    totalPages: segments.length
-                                });
-                                
-                                if (canvasImageResult.success) {
-                                    pageImage = {
-                                        canvasGenerated: true,
-                                        dataUrl: canvasImageResult.dataUrl,
-                                        content: segments[i],
-                                        pageNumber: pageNum,
-                                        width: canvasImageResult.width,
-                                        height: canvasImageResult.height
-                                    };
-                                    sendProgress(3 + i, `✅ 第${pageNum}张Canvas图片生成成功！`);
-                                } else {
-                                    throw new Error('Canvas图片生成失败');
-                                }
-                            } catch (canvasError) {
-                                console.warn(`Canvas图片生成失败: ${canvasError.message}`);
-                                sendProgress(3 + i, `⚠️ 第${pageNum}张Canvas生成失败，转为前端生成...`);
-                                // 返回Canvas生成信息，让前端处理
-                                pageImage = {
-                                    canvasGenerated: true,
-                                    content: segments[i],
-                                    pageNumber: pageNum,
-                                    totalPages: segments.length,
-                                    template: template,
-                                    width: 750,
-                                    height: 1334,
-                                    needsFrontendGeneration: true
-                                };
-                                sendProgress(3 + i, `✅ 第${pageNum}张Canvas信息已准备，等待前端生成！`);
-                            }
-                        }
-                    } else {
-                        // 非AI模式，优先使用Canvas生成
-                        sendProgress(3 + i, `📝 第${pageNum}张使用Canvas模式生成...`);
-                        try {
-                            const canvasImageResult = await canvasImageGenerator.generateImage(segments[i], {
-                                template: template,
-                                pageNumber: pageNum,
-                                totalPages: segments.length
-                            });
-                            
-                            if (canvasImageResult.success) {
-                                pageImage = {
-                                    canvasGenerated: true,
-                                    dataUrl: canvasImageResult.dataUrl,
-                                    content: segments[i],
-                                    pageNumber: pageNum,
-                                    width: canvasImageResult.width,
-                                    height: canvasImageResult.height
-                                };
-                                sendProgress(3 + i, `✅ 第${pageNum}张Canvas图片生成成功！`);
-                            } else {
-                                throw new Error('Canvas图片生成失败');
-                            }
-                        } catch (canvasError) {
-                            console.warn(`Canvas图片生成失败: ${canvasError.message}`);
-                            sendProgress(3 + i, `⚠️ 第${pageNum}张Canvas生成失败，转为前端生成...`);
-                            // 返回Canvas生成信息，让前端处理
+                            sendProgress(3 + i, `⚠️ 第${pageNum}张AI图片超时，降级到前端Canvas生成...`);
+                            // 直接返回数据给前端生成
                             pageImage = {
-                                canvasGenerated: true,
+                                frontendCanvas: true,
                                 content: segments[i],
                                 pageNumber: pageNum,
                                 totalPages: segments.length,
                                 template: template,
                                 width: 750,
-                                height: 1334,
-                                needsFrontendGeneration: true
+                                height: 1334
                             };
-                            sendProgress(3 + i, `✅ 第${pageNum}张Canvas信息已准备，等待前端生成！`);
+                            sendProgress(3 + i, `✅ 第${pageNum}张数据已准备，前端生成中！`);
                         }
+                    } else {
+                        // 非AI模式，直接返回数据给前端生成
+                        sendProgress(3 + i, `📝 第${pageNum}张准备前端Canvas生成...`);
+                        pageImage = {
+                            frontendCanvas: true,
+                            content: segments[i],
+                            pageNumber: pageNum,
+                            totalPages: segments.length,
+                            template: template,
+                            width: 750,
+                            height: 1334
+                        };
+                        sendProgress(3 + i, `✅ 第${pageNum}张数据已准备，前端生成中！`);
                     }
                     
                     // 必须有图片结果才继续
