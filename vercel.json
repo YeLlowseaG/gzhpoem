@@ -20,6 +20,10 @@
       "dest": "server.js"
     },
     {
+      "src": "/baokuan.html",
+      "dest": "public/baokuan.html"
+    },
+    {
       "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "public/$1"
     },
