@@ -717,6 +717,9 @@ class PoemApp {
                     <button class="btn btn-sm btn-outline" onclick="app.copyArticle('${article.id}')">
                         📋 复制
                     </button>
+                    <button class="btn btn-sm btn-primary" onclick="app.uploadArticle('${article.id}')">
+                        🚀 上传
+                    </button>
                     <button class="btn btn-sm btn-outline" onclick="app.deleteArticle('${article.id}')">
                         🗑️ 删除
                     </button>
@@ -755,6 +758,116 @@ class PoemApp {
         }
         
         paginationElement.innerHTML = html;
+    }
+
+    async viewArticle(id) {
+        try {
+            const response = await fetch(`/api/articles/${id}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                // 显示文章详情模态框
+                this.showArticleModal(data.data);
+            } else {
+                this.showToast('error', '获取文章失败: ' + data.error);
+            }
+        } catch (error) {
+            this.showToast('error', '获取文章失败: ' + error.message);
+        }
+    }
+
+    async copyArticle(id) {
+        try {
+            const response = await fetch(`/api/articles/${id}`);
+            const data = await response.json();
+            
+            if (data.success && data.data.content) {
+                await navigator.clipboard.writeText(data.data.content);
+                this.showToast('success', '文章内容已复制到剪贴板');
+            } else {
+                this.showToast('error', '获取文章内容失败');
+            }
+        } catch (error) {
+            this.showToast('error', '复制失败: ' + error.message);
+        }
+    }
+
+    async uploadArticle(id) {
+        try {
+            const response = await fetch(`/api/articles/${id}`);
+            const data = await response.json();
+            
+            if (!data.success) {
+                this.showToast('error', '获取文章失败: ' + data.error);
+                return;
+            }
+            
+            const article = data.data;
+            
+            // 构建上传数据
+            const uploadData = {
+                articleId: id,
+                selectedTitle: article.titles && article.titles.length > 0 ? article.titles[0] : null,
+                article: article
+            };
+            
+            console.log('历史文章上传数据:', uploadData);
+            
+            const uploadResponse = await fetch('/api/wechat/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(uploadData)
+            });
+            
+            const uploadResult = await uploadResponse.json();
+            
+            if (uploadResult.success) {
+                this.showToast('success', `文章已上传到微信草稿箱！\n标题: ${uploadResult.data.title}`);
+                this.showUploadSuccess(uploadResult.data);
+            } else {
+                this.showToast('error', '上传失败: ' + uploadResult.error);
+            }
+        } catch (error) {
+            this.showToast('error', '上传失败: ' + error.message);
+        }
+    }
+
+    showArticleModal(article) {
+        // 创建文章查看模态框
+        const modalHtml = `
+            <div id="articleModal" class="modal active">
+                <div class="modal-content large">
+                    <div class="modal-header">
+                        <h3>${article.metadata?.author || '未知'} - ${article.metadata?.title || '未知标题'}</h3>
+                        <button class="modal-close" onclick="closeArticleModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="article-info-bar">
+                            <span>📅 ${new Date(article.createdAt).toLocaleString()}</span>
+                            <span>🎨 ${article.metadata?.style || '未知风格'}</span>
+                            <span>📝 ${article.content?.length || 0}字</span>
+                        </div>
+                        <div class="article-content-preview">
+                            ${this.renderMarkdown(article.content || '无内容')}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="copyArticleContent('${article.id}')">📋 复制</button>
+                        <button class="btn btn-primary" onclick="uploadArticleFromModal('${article.id}')">🚀 上传微信</button>
+                        <button class="btn btn-outline" onclick="closeArticleModal()">关闭</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 移除已存在的模态框
+        const existingModal = document.getElementById('articleModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // 添加新模态框
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
 
     async deleteArticle(id) {
@@ -1040,6 +1153,22 @@ function saveSettings() {
 
 function refreshServerIp() {
     app.refreshServerIp();
+}
+
+function closeArticleModal() {
+    const modal = document.getElementById('articleModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function copyArticleContent(id) {
+    app.copyArticle(id);
+}
+
+function uploadArticleFromModal(id) {
+    app.uploadArticle(id);
+    closeArticleModal();
 }
 
 // 补充缺失的方法

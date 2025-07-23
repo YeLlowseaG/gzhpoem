@@ -278,6 +278,33 @@ app.get('/api/articles/history', async (req, res) => {
     }
 });
 
+// 获取单个文章
+app.get('/api/articles/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const article = await storageService.getArticle(id);
+        
+        if (!article) {
+            return res.status(404).json({
+                success: false,
+                error: '文章不存在'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: article
+        });
+        
+    } catch (error) {
+        console.error('获取文章失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取文章失败'
+        });
+    }
+});
+
 // 删除文章
 app.delete('/api/articles/:id', async (req, res) => {
     try {
