@@ -866,11 +866,12 @@ app.post('/api/xiaolvshu/generate', async (req, res) => {
         console.log('📝 内容长度:', content.length);
         console.log('🎨 使用模板:', template);
         
-        // 生成多张SVG图片
+        // 生成多张SVG图片（支持AI智能分段）
         const result = await svgGenerator.generateImages(content, {
             title: title || '诗词赏析',
             author: author || '',
-            template: template
+            template: template,
+            aiService: aiService  // 传递AI服务用于智能分段
         });
         
         if (result.success) {

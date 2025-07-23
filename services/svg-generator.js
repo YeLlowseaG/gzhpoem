@@ -63,14 +63,15 @@ class SVGGenerator {
             const {
                 title = '诗词赏析',
                 author = '',
-                template = 'classic'
+                template = 'classic',
+                aiService = null
             } = options;
 
             console.log('🎨 开始生成小绿书SVG图片...');
             console.log('📝 内容长度:', content.length);
 
-            // 1. 智能分段
-            const segments = this.intelligentSegmentation(content, template);
+            // 1. 智能分段（支持AI）
+            const segments = await this.intelligentSegmentation(content, template, aiService);
             console.log('📄 分段结果:', segments.length, '页');
 
             // 2. 生成每页SVG
@@ -109,9 +110,9 @@ class SVGGenerator {
     }
 
     /**
-     * 智能分段算法
+     * 智能分段算法 - 优先使用AI，降级到基础算法
      */
-    intelligentSegmentation(content, templateName) {
+    async intelligentSegmentation(content, templateName, aiService = null) {
         const template = this.templates[templateName];
         const maxChars = template.maxCharsPerPage;
         
@@ -125,7 +126,87 @@ class SVGGenerator {
             .replace(/`(.*?)`/g, '$1') // 移除代码
             .replace(/---+/g, '') // 移除分隔线
             .trim();
-        
+
+        // 尝试使用AI智能分段
+        if (aiService && aiService.isConfigured()) {
+            try {
+                console.log('🤖 尝试使用AI进行智能分段...');
+                const aiSegments = await this.aiSmartSegmentation(cleanContent, maxChars, aiService);
+                if (aiSegments && aiSegments.length > 0) {
+                    console.log(`✅ AI分段成功，共${aiSegments.length}段`);
+                    return aiSegments;
+                }
+            } catch (error) {
+                console.warn('⚠️ AI分段失败，降级到基础算法:', error.message);
+            }
+        }
+
+        // 降级到基础分段算法
+        console.log('📝 使用基础分段算法...');
+        return this.basicSegmentation(cleanContent, maxChars);
+    }
+
+    /**
+     * AI智能分段
+     */
+    async aiSmartSegmentation(content, maxCharsPerPage, aiService) {
+        const prompt = `请帮我将以下文章内容智能分段，用于制作图片卡片：
+
+文章内容：
+${content}
+
+分段要求：
+1. 每段控制在${maxCharsPerPage}字符以内（建议${Math.floor(maxCharsPerPage * 0.8)}-${maxCharsPerPage}字符）
+2. 在语义完整的位置分段，不要切断句子或段落
+3. 保持内容的逻辑连贯性
+4. 确保每段都有相对完整的主题
+5. 分段数量适中，便于制作图片卡片
+
+请直接输出分段结果，每段之间用"---"分隔，不要添加任何解释或标号。
+
+格式示例：
+第一段内容...
+
+---
+
+第二段内容...
+
+---
+
+第三段内容...`;
+
+        const result = await aiService.generateWithAI({
+            author: '', 
+            title: '智能分段', 
+            style: 'popular', 
+            keywords: '', 
+            content: prompt
+        });
+
+        if (result && result.content) {
+            // 解析AI返回的分段结果
+            const segments = result.content
+                .split('---')
+                .map(segment => segment.trim())
+                .filter(segment => segment.length > 0);
+            
+            // 验证分段结果
+            const validSegments = segments.filter(segment => {
+                return segment.length > 50 && segment.length <= maxCharsPerPage * 1.2;
+            });
+
+            if (validSegments.length > 0) {
+                return validSegments;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 基础分段算法（降级方案）
+     */
+    basicSegmentation(cleanContent, maxChars) {
         // 按段落分割
         const paragraphs = cleanContent.split(/\n\s*\n/).filter(p => p.trim());
         const segments = [];
@@ -318,24 +399,21 @@ class SVGGenerator {
     }
 
     /**
-     * 文本换行处理 - 智能换行算法
+     * 文本换行处理 - 简化但可靠的换行算法
      */
     wrapText(text, fontSize, maxWidth) {
         const lines = [];
         const paragraphs = text.split('\n');
         
-        // 更精确的字符宽度估算 - 考虑SVG渲染的实际宽度
-        const chineseCharWidth = fontSize * 0.9;  // 中文字符宽度（稍微调小）
-        const englishCharWidth = fontSize * 0.45; // 英文字符宽度
-        const punctuationWidth = fontSize * 0.4;  // 标点符号宽度（更窄）
+        // 非常保守的字符估算，确保绝对不会超出
+        const avgCharWidth = fontSize * 0.6;  // 平均字符宽度，更保守
+        const safeMaxWidth = maxWidth - 80;   // 预留更多边距
+        const maxCharsPerLine = Math.floor(safeMaxWidth / avgCharWidth);
         
-        // 预留一些边距，避免文字贴边
-        const actualMaxWidth = maxWidth - 20;
+        console.log(`换行调试: fontSize=${fontSize}, maxWidth=${maxWidth}, safeMaxWidth=${safeMaxWidth}, maxCharsPerLine=${maxCharsPerLine}`);
         
         // 不能在行首的标点符号
         const endPunctuations = ['。', '，', '！', '？', '；', '：', '）', '】', '』', '》', '」', '"', '"', '、', ')', ']', '}'];
-        // 不能在行尾的标点符号  
-        const startPunctuations = ['（', '【', '『', '《', '「', '"', '"', '(', '[', '{'];
         
         for (const paragraph of paragraphs) {
             if (!paragraph.trim()) {
@@ -343,53 +421,31 @@ class SVGGenerator {
                 continue;
             }
 
+            // 简化逻辑：直接按字符数量换行，但考虑标点符号规则
             const chars = paragraph.split('');
             let currentLine = '';
-            let currentWidth = 0;
 
             for (let i = 0; i < chars.length; i++) {
                 const char = chars[i];
                 const nextChar = i < chars.length - 1 ? chars[i + 1] : null;
-                let charWidth;
-                
-                // 计算字符宽度
-                if (/[\u4e00-\u9fa5]/.test(char)) {
-                    // 中文字符
-                    charWidth = chineseCharWidth;
-                } else if (/[a-zA-Z0-9]/.test(char)) {
-                    // 英文字符和数字
-                    charWidth = englishCharWidth;
-                } else {
-                    // 标点符号等
-                    charWidth = punctuationWidth;
-                }
                 
                 // 检查是否需要换行
-                if (currentWidth + charWidth > actualMaxWidth && currentLine.length > 0) {
+                if (currentLine.length >= maxCharsPerLine && currentLine.length > 0) {
                     // 检查标点符号换行规则
                     if (endPunctuations.includes(char)) {
-                        // 结尾标点符号不能换到下一行，继续添加到当前行
+                        // 结尾标点符号不能换到下一行
                         currentLine += char;
-                        currentWidth += charWidth;
                     } else if (nextChar && endPunctuations.includes(nextChar)) {
                         // 如果下一个字符是结尾标点，当前字符也不换行
                         currentLine += char;
-                        currentWidth += charWidth;
-                    } else if (startPunctuations.includes(char)) {
-                        // 开头标点符号不能单独在行尾
-                        lines.push(currentLine);
-                        currentLine = char;
-                        currentWidth = charWidth;
                     } else {
-                        // 可以换行，保存当前行，开始新行
+                        // 可以换行
                         lines.push(currentLine);
                         currentLine = char;
-                        currentWidth = charWidth;
                     }
                 } else {
                     // 不需要换行，继续添加
                     currentLine += char;
-                    currentWidth += charWidth;
                 }
             }
 
@@ -399,6 +455,7 @@ class SVGGenerator {
             }
         }
 
+        console.log(`换行结果: 原文${text.length}字符, 分成${lines.length}行`);
         return lines;
     }
 
