@@ -741,10 +741,22 @@ ${content || '（暂无具体内容）'}
             if (analysis.success && analysis.content) {
                 const lines = analysis.content.split('\n');
                 lines.forEach(line => {
-                    if (line.includes('意境') && !line.includes('：')) mood = line.trim();
-                    else if (line.includes('意象') && !line.includes('：')) imagery = line.trim();
-                    else if (line.includes('色彩') && !line.includes('：')) colorTone = line.trim();
-                    else if (line.includes('风格') && !line.includes('：')) artStyle = line.trim();
+                    if (line.includes('意境') || line.includes('核心意境')) {
+                        const match = line.match(/[：:]\s*(.+)/) || line.match(/意境.+?[：:]\s*(.+)/);
+                        if (match) mood = match[1].trim().replace(/[。，！？；]/g, '');
+                    }
+                    else if (line.includes('意象') || line.includes('主要意象')) {
+                        const match = line.match(/[：:]\s*(.+)/) || line.match(/意象.+?[：:]\s*(.+)/);
+                        if (match) imagery = match[1].trim().replace(/[。，！？；]/g, '');
+                    }
+                    else if (line.includes('色彩') || line.includes('色调')) {
+                        const match = line.match(/[：:]\s*(.+)/) || line.match(/色彩.+?[：:]\s*(.+)/);
+                        if (match) colorTone = match[1].trim().replace(/[。，！？；]/g, '');
+                    }
+                    else if (line.includes('风格') || line.includes('绘画')) {
+                        const match = line.match(/[：:]\s*(.+)/) || line.match(/风格.+?[：:]\s*(.+)/);
+                        if (match) artStyle = match[1].trim().replace(/[。，！？；]/g, '');
+                    }
                 });
             }
 
@@ -834,8 +846,8 @@ ${content || '（暂无具体内容）'}
      * 轮询图片生成结果
      */
     async pollImageGenerationResult(taskId, apiKey) {
-        const maxAttempts = 10;
-        const delay = 3000; // 3秒
+        const maxAttempts = 15; // 增加轮询次数
+        const delay = 4000; // 4秒间隔，给AI更多生成时间
 
         for (let i = 0; i < maxAttempts; i++) {
             try {
