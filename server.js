@@ -976,17 +976,19 @@ app.post('/api/xiaolvshu/generate-stream', async (req, res) => {
                                 }
                             } catch (canvasError) {
                                 console.warn(`Canvas图片生成失败: ${canvasError.message}`);
-                                sendProgress(3 + i, `⚠️ 第${pageNum}张Canvas生成失败，最后尝试SVG...`);
-                                // 最后降级到SVG
-                                pageImage = await svgGenerator.generateSinglePageSVG({
+                                sendProgress(3 + i, `⚠️ 第${pageNum}张Canvas生成失败，转为前端生成...`);
+                                // 返回Canvas生成信息，让前端处理
+                                pageImage = {
+                                    canvasGenerated: true,
                                     content: segments[i],
-                                    title: i === 0 ? title : '',
-                                    author: i === 0 ? author : '',
-                                    template: template,
                                     pageNumber: pageNum,
-                                    totalPages: segments.length
-                                });
-                                sendProgress(3 + i, `✅ 第${pageNum}张SVG图片生成成功！`);
+                                    totalPages: segments.length,
+                                    template: template,
+                                    width: 750,
+                                    height: 1334,
+                                    needsFrontendGeneration: true
+                                };
+                                sendProgress(3 + i, `✅ 第${pageNum}张Canvas信息已准备，等待前端生成！`);
                             }
                         }
                     } else {
@@ -1014,17 +1016,19 @@ app.post('/api/xiaolvshu/generate-stream', async (req, res) => {
                             }
                         } catch (canvasError) {
                             console.warn(`Canvas图片生成失败: ${canvasError.message}`);
-                            sendProgress(3 + i, `⚠️ 第${pageNum}张Canvas生成失败，降级到SVG...`);
-                            // 降级到SVG
-                            pageImage = await svgGenerator.generateSinglePageSVG({
+                            sendProgress(3 + i, `⚠️ 第${pageNum}张Canvas生成失败，转为前端生成...`);
+                            // 返回Canvas生成信息，让前端处理
+                            pageImage = {
+                                canvasGenerated: true,
                                 content: segments[i],
-                                title: i === 0 ? title : '',
-                                author: i === 0 ? author : '',
-                                template: template,
                                 pageNumber: pageNum,
-                                totalPages: segments.length
-                            });
-                            sendProgress(3 + i, `✅ 第${pageNum}张SVG图片生成成功！`);
+                                totalPages: segments.length,
+                                template: template,
+                                width: 750,
+                                height: 1334,
+                                needsFrontendGeneration: true
+                            };
+                            sendProgress(3 + i, `✅ 第${pageNum}张Canvas信息已准备，等待前端生成！`);
                         }
                     }
                     

@@ -106,13 +106,8 @@ class CanvasImageGenerator {
             // 浏览器环境
             return document.createElement('canvas');
         } else {
-            // Node.js环境 - 需要canvas库
-            try {
-                const { createCanvas } = require('canvas');
-                return createCanvas(750, 1334);
-            } catch (error) {
-                throw new Error('Node.js环境需要安装canvas库');
-            }
+            // Node.js环境 - 暂时返回失败，让前端处理
+            throw new Error('服务器端Canvas暂不支持，请使用前端生成');
         }
     }
     

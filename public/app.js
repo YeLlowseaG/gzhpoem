@@ -1936,7 +1936,9 @@ function displayXiaoLvShuDirectResult(data) {
                 ${image.aiGenerated ? 
                     `<img src="${image.imageUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />` :
                 image.canvasGenerated ? 
-                    `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />` :
+                    (image.needsFrontendGeneration ? 
+                        `<div style="width: 100%; height: 300px; background: #f5f5f5; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666;">前端生成中...</div>` :
+                        `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`) :
                     `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`
                 }
                 <div class="xiaolvshu-image-actions">
@@ -1973,10 +1975,182 @@ function displayXiaoLvShuDirectResult(data) {
     // 存储图片数据供后续使用
     app.currentXiaoLvShuImages = data.images;
     
+    // 处理Canvas生成的图片
+    setTimeout(() => {
+        data.images.forEach((image, index) => {
+            if (image.canvasGenerated && (image.needsFrontendGeneration || !image.dataUrl)) {
+                // 前端生成Canvas图片
+                generateCanvasImageFinal(image, index);
+            }
+        });
+    }, 100);
+    
     // 滚动到结果区域
     outputElement.scrollIntoView({ behavior: 'smooth' });
 }
 
+// 前端Canvas图片生成器
+class FrontendCanvasGenerator {
+    constructor() {
+        this.templates = {
+            classic: {
+                name: '古典雅致',
+                width: 750,
+                height: 1334,
+                background: '#f8f5f0',
+                textColor: '#2c2c2c',
+                fontSize: 24,
+                lineHeight: 40,
+                padding: 80,
+                fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif'
+            },
+            modern: {
+                name: '现代简约',
+                width: 750,
+                height: 1334,
+                background: '#ffffff',
+                textColor: '#333333',
+                fontSize: 26,
+                lineHeight: 42,
+                padding: 70,
+                fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif'
+            },
+            elegant: {
+                name: '优雅文艺',
+                width: 750,
+                height: 1334,
+                background: '#ffecd2',
+                textColor: '#444444',
+                fontSize: 22,
+                lineHeight: 38,
+                padding: 75,
+                fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif'
+            }
+        };
+    }
+    
+    generateImage(content, template = 'classic', pageNumber = 1, totalPages = 1) {
+        const config = this.templates[template];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = config.width;
+        canvas.height = config.height;
+        
+        // 绘制背景
+        ctx.fillStyle = config.background;
+        ctx.fillRect(0, 0, config.width, config.height);
+        
+        // 绘制文字
+        ctx.fillStyle = config.textColor;
+        ctx.font = `${config.fontSize}px ${config.fontFamily}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        
+        // 文字换行
+        const maxWidth = config.width - config.padding * 2;
+        const lines = this.wrapText(ctx, content, maxWidth);
+        
+        let y = config.padding;
+        for (const line of lines) {
+            if (y + config.lineHeight > config.height - config.padding) break;
+            
+            if (line.trim()) {
+                ctx.fillText(line, config.padding, y);
+            }
+            y += config.lineHeight;
+        }
+        
+        // 绘制页码
+        if (totalPages > 1) {
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.font = `14px ${config.fontFamily}`;
+            ctx.textAlign = 'center';
+            ctx.fillText(`${pageNumber}/${totalPages}`, config.width / 2, config.height - 30);
+        }
+        
+        return canvas.toDataURL('image/png');
+    }
+    
+    wrapText(ctx, text, maxWidth) {
+        const lines = [];
+        const paragraphs = text.split('\n');
+        
+        for (const paragraph of paragraphs) {
+            if (!paragraph.trim()) {
+                lines.push('');
+                continue;
+            }
+            
+            const chars = paragraph.split('');
+            let currentLine = '';
+            
+            for (let i = 0; i < chars.length; i++) {
+                const char = chars[i];
+                const testLine = currentLine + char;
+                const metrics = ctx.measureText(testLine);
+                
+                if (metrics.width > maxWidth && currentLine.length > 0) {
+                    const endPunctuations = ['。', '，', '！', '？', '；', '：', '）', '】', '』', '》', '」', '"', '"', '、'];
+                    
+                    if (endPunctuations.includes(char)) {
+                        currentLine += char;
+                    } else {
+                        lines.push(currentLine);
+                        currentLine = char;
+                    }
+                } else {
+                    currentLine += char;
+                }
+            }
+            
+            if (currentLine.trim()) {
+                lines.push(currentLine);
+            }
+        }
+        
+        return lines;
+    }
+}
+
+// 创建全局Canvas生成器实例
+const frontendCanvasGenerator = new FrontendCanvasGenerator();
+
+// 生成Canvas图片
+function generateCanvasImageFinal(imageData, index) {
+    try {
+        const dataUrl = frontendCanvasGenerator.generateImage(
+            imageData.content, 
+            imageData.template || 'classic',
+            imageData.pageNumber, 
+            imageData.totalPages || 1
+        );
+        
+        // 更新图片数据
+        if (app.currentXiaoLvShuImages && app.currentXiaoLvShuImages[index]) {
+            app.currentXiaoLvShuImages[index].dataUrl = dataUrl;
+            app.currentXiaoLvShuImages[index].needsFrontendGeneration = false;
+            
+            // 更新页面显示
+            const cardElement = document.querySelector(`.xiaolvshu-image-card:nth-child(${index + 1})`);
+            if (cardElement) {
+                // 找到占位符div并替换为img
+                const placeholderDiv = cardElement.querySelector('div[style*="前端生成中"]');
+                if (placeholderDiv) {
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.alt = `第${imageData.pageNumber}页`;
+                    img.style.cssText = 'width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+                    placeholderDiv.parentNode.replaceChild(img, placeholderDiv);
+                }
+            }
+        }
+        
+        console.log(`✅ 前端Canvas生成成功 (第${imageData.pageNumber}页)`);
+    } catch (error) {
+        console.error(`前端Canvas生成失败 (第${imageData.pageNumber}页):`, error);
+    }
+}
 
 // 补充缺失的方法
 PoemApp.prototype.loadWechatStatus = async function() {
