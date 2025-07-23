@@ -1726,6 +1726,10 @@ function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
                             <div class="xiaolvshu-image-content">
                                 ${image.aiGenerated ? 
                                     `<img src="${image.imageUrl}" alt="第${pageNum}页" style="width: 100%; height: auto; border-radius: 8px;">` :
+                                image.htmlGenerated ? 
+                                    (image.html ? 
+                                        `<div id="html-content-${i}" style="display: none;">${image.html}</div><canvas id="canvas-${i}" style="width: 100%; height: auto; border-radius: 8px;"></canvas><script>convertHtmlToCanvas(${i}, '${pageNum}');</script>` :
+                                        `<img src="${image.dataUrl}" alt="第${pageNum}页" style="width: 100%; height: auto; border-radius: 8px;">`) :
                                     `<div style="width: 100%; height: 300px; background: url('data:image/svg+xml;base64,${image.base64}') center/contain no-repeat; border-radius: 8px;"></div>`
                                 }
                             </div>
@@ -1931,7 +1935,14 @@ function displayXiaoLvShuDirectResult(data) {
         html += `
             <div class="xiaolvshu-image-card">
                 <div class="xiaolvshu-page-number">第 ${image.pageNumber} 页</div>
-                <img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+                ${image.aiGenerated ? 
+                    `<img src="${image.imageUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />` :
+                image.htmlGenerated ? 
+                    (image.html ? 
+                        `<div id="html-content-final-${index}" style="display: none;">${image.html}</div><canvas id="canvas-final-${index}" style="width: 100%; height: auto; border-radius: 8px;"></canvas><script>convertHtmlToCanvasFinal(${index});</script>` :
+                        `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`) :
+                    `<img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`
+                }
                 <div class="xiaolvshu-image-actions">
                     <button class="btn btn-sm btn-outline" onclick="downloadXiaoLvShuImage(${index})">
                         💾 下载
@@ -1968,6 +1979,112 @@ function displayXiaoLvShuDirectResult(data) {
     
     // 滚动到结果区域
     outputElement.scrollIntoView({ behavior: 'smooth' });
+}
+
+// HTML转Canvas函数
+function convertHtmlToCanvas(index, pageNum) {
+    setTimeout(() => {
+        const htmlContent = document.getElementById(`html-content-${index}`);
+        const canvas = document.getElementById(`canvas-${index}`);
+        
+        if (!htmlContent || !canvas) return;
+        
+        // 创建临时iframe来渲染HTML
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.left = '-9999px';
+        iframe.style.width = '750px';
+        iframe.style.height = '1334px';
+        document.body.appendChild(iframe);
+        
+        iframe.onload = function() {
+            const iframeDoc = iframe.contentDocument;
+            iframeDoc.open();
+            iframeDoc.write(htmlContent.innerHTML);
+            iframeDoc.close();
+            
+            // 等待字体加载
+            setTimeout(() => {
+                const ctx = canvas.getContext('2d');
+                canvas.width = 750;
+                canvas.height = 1334;
+                
+                // 使用html2canvas转换
+                if (window.html2canvas) {
+                    html2canvas(iframeDoc.body, {
+                        width: 750,
+                        height: 1334,
+                        scale: 1
+                    }).then(tempCanvas => {
+                        ctx.drawImage(tempCanvas, 0, 0);
+                        document.body.removeChild(iframe);
+                    }).catch(error => {
+                        console.error(`HTML转Canvas失败 (第${pageNum}页):`, error);
+                        document.body.removeChild(iframe);
+                    });
+                } else {
+                    console.warn('html2canvas库未加载，无法转换HTML');
+                    document.body.removeChild(iframe);
+                }
+            }, 500);
+        };
+    }, 100);
+}
+
+// 最终结果页面的HTML转Canvas函数
+function convertHtmlToCanvasFinal(index) {
+    setTimeout(() => {
+        const htmlContent = document.getElementById(`html-content-final-${index}`);
+        const canvas = document.getElementById(`canvas-final-${index}`);
+        
+        if (!htmlContent || !canvas) return;
+        
+        // 创建临时iframe来渲染HTML
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.left = '-9999px';
+        iframe.style.width = '750px';
+        iframe.style.height = '1334px';
+        document.body.appendChild(iframe);
+        
+        iframe.onload = function() {
+            const iframeDoc = iframe.contentDocument;
+            iframeDoc.open();
+            iframeDoc.write(htmlContent.innerHTML);
+            iframeDoc.close();
+            
+            // 等待字体加载
+            setTimeout(() => {
+                const ctx = canvas.getContext('2d');
+                canvas.width = 750;
+                canvas.height = 1334;
+                
+                // 使用html2canvas转换
+                if (window.html2canvas) {
+                    html2canvas(iframeDoc.body, {
+                        width: 750,
+                        height: 1334,
+                        scale: 1
+                    }).then(tempCanvas => {
+                        ctx.drawImage(tempCanvas, 0, 0);
+                        document.body.removeChild(iframe);
+                        
+                        // 更新app中的图片数据为canvas的dataURL
+                        if (app.currentXiaoLvShuImages && app.currentXiaoLvShuImages[index]) {
+                            app.currentXiaoLvShuImages[index].dataUrl = canvas.toDataURL('image/png');
+                            app.currentXiaoLvShuImages[index].htmlConverted = true;
+                        }
+                    }).catch(error => {
+                        console.error(`HTML转Canvas失败 (第${index + 1}页):`, error);
+                        document.body.removeChild(iframe);
+                    });
+                } else {
+                    console.warn('html2canvas库未加载，无法转换HTML');
+                    document.body.removeChild(iframe);
+                }
+            }, 500);
+        };
+    }, 100);
 }
 
 // 补充缺失的方法
