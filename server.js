@@ -19,6 +19,7 @@ const AIService = require('./services/ai-service');
 const WechatService = require('./services/wechat-service');
 const KVStorageService = require('./services/kv-storage-service');
 const ConfigService = require('./services/config-service');
+const SVGGenerator = require('./services/svg-generator');
 
 const app = express();
 const PORT = 8080;
@@ -28,6 +29,7 @@ const aiService = new AIService();
 const wechatService = new WechatService();
 const storageService = new KVStorageService();
 const configService = new ConfigService();
+const svgGenerator = new SVGGenerator();
 
 // 中间件
 app.use(cors());
@@ -561,7 +563,10 @@ app.post('/api/baokuan/generate', async (req, res) => {
             originSummary,
             topic,
             keywords,
-            content: finalContent
+            content: finalContent,
+            titles: titles || [],
+            cover: cover,
+            explosiveElements: explosiveElements // 返回分析的爆款要素，供前端显示
         });
     } catch (error) {
         res.json({ success: false, error: '爆款文生成失败: ' + error.message });
@@ -721,6 +726,73 @@ app.post('/api/wechat/upload', async (req, res) => {
             success: false,
             error: '上传失败',
             message: error.message
+        });
+    }
+});
+
+// ==================== 小绿书图片生成接口 ====================
+
+// 生成小绿书图片
+app.post('/api/xiaolvshu/generate', async (req, res) => {
+    try {
+        const { content, title, author, template = 'classic' } = req.body;
+        
+        if (!content) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少文章内容'
+            });
+        }
+        
+        console.log('📸 开始生成小绿书图片...');
+        console.log('📝 内容长度:', content.length);
+        console.log('🎨 使用模板:', template);
+        
+        // 生成多张SVG图片
+        const result = await svgGenerator.generateImages(content, {
+            title: title || '诗词赏析',
+            author: author || '',
+            template: template
+        });
+        
+        if (result.success) {
+            console.log('✅ 小绿书图片生成完成, 共', result.totalPages, '张');
+            res.json({
+                success: true,
+                images: result.images,
+                totalPages: result.totalPages,
+                template: result.template
+            });
+        } else {
+            console.error('❌ 小绿书图片生成失败:', result.error);
+            res.status(500).json({
+                success: false,
+                error: '图片生成失败: ' + result.error
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ 小绿书接口错误:', error);
+        res.status(500).json({
+            success: false,
+            error: '图片生成服务异常: ' + error.message
+        });
+    }
+});
+
+// 获取可用的图片模板
+app.get('/api/xiaolvshu/templates', (req, res) => {
+    try {
+        const templates = svgGenerator.getTemplates();
+        res.json({
+            success: true,
+            templates: templates
+        });
+    } catch (error) {
+        console.error('获取模板失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取模板失败'
         });
     }
 });

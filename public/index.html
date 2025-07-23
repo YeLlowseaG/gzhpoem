@@ -172,6 +172,9 @@
                                     <button class="btn btn-sm btn-outline" onclick="copyToClipboard()">
                                         📋 复制
                                     </button>
+                                    <button class="btn btn-sm btn-outline" onclick="generateXiaoLvShu()" id="xiaoLvShuBtn">
+                                        📸 小绿书
+                                    </button>
                                     <button class="btn btn-sm btn-primary" onclick="uploadToWechat()" id="uploadBtn">
                                         🚀 上传微信
                                     </button>
@@ -394,6 +397,69 @@
                 <div class="modal-footer">
                     <button class="btn btn-outline" onclick="hideSettings()">取消</button>
                     <button class="btn btn-primary" onclick="saveSettings()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 小绿书模态框 -->
+        <div id="xiaoLvShuModal" class="modal">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3>📸 小绿书图片生成</h3>
+                    <button class="modal-close" onclick="hideXiaoLvShuModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="xiaolvshu-container">
+                        <div class="xiaolvshu-settings">
+                            <h4>生成设置</h4>
+                            <div class="form-group">
+                                <label for="xiaoLvShuTemplate">选择模板</label>
+                                <select id="xiaoLvShuTemplate">
+                                    <option value="classic">古典雅致</option>
+                                    <option value="modern">现代简约</option>
+                                    <option value="elegant">优雅文艺</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="xiaoLvShuTitle">标题</label>
+                                <input type="text" id="xiaoLvShuTitle" placeholder="自动获取生成的标题">
+                            </div>
+                            <div class="form-group">
+                                <label for="xiaoLvShuAuthor">作者</label>
+                                <input type="text" id="xiaoLvShuAuthor" placeholder="诗词作者">
+                            </div>
+                            <div class="xiaolvshu-actions">
+                                <button class="btn btn-primary" onclick="startGenerateXiaoLvShu()">
+                                    🚀 开始生成
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="xiaolvshu-preview">
+                            <h4>生成预览</h4>
+                            <div id="xiaoLvShuLoading" class="loading" style="display: none;">
+                                <div class="loading-spinner"></div>
+                                <p>正在生成小绿书图片...</p>
+                            </div>
+                            
+                            <div id="xiaoLvShuResult" class="xiaolvshu-result" style="display: none;">
+                                <div class="xiaolvshu-info">
+                                    <span id="xiaoLvShuCount">共 0 张图片</span>
+                                    <div class="xiaolvshu-download-actions">
+                                        <button class="btn btn-sm btn-outline" onclick="downloadAllXiaoLvShu()">
+                                            💾 下载全部
+                                        </button>
+                                        <button class="btn btn-sm btn-primary" onclick="uploadXiaoLvShuToWechat()">
+                                            🚀 上传微信
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="xiaoLvShuImages" class="xiaolvshu-images">
+                                    <!-- 生成的图片将在这里显示 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
