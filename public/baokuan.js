@@ -138,6 +138,118 @@ class BaokuanApp {
         }
     }
 
+    async uploadToWechat() {
+        if (!this.currentArticle) {
+            this.showToast('error', '请先生成爆款文');
+            return;
+        }
+        
+        console.log('开始上传爆款文到微信...', this.currentArticle);
+        
+        try {
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '🚀 上传中...';
+            
+            // 先保存文章到存储系统（如果还没有ID的话）
+            let articleToUpload = this.currentArticle;
+            if (!articleToUpload.id) {
+                articleToUpload = await this.saveArticle();
+            }
+            
+            // 构建上传数据
+            const uploadData = {
+                articleId: articleToUpload.id,
+                selectedTitle: articleToUpload.topic || null, // 使用爆款选题作为标题
+                article: articleToUpload // 传递完整的文章数据
+            };
+            
+            console.log('上传数据:', uploadData);
+            
+            const response = await fetch('/api/wechat/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(uploadData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showToast('success', `爆款文已上传到微信草稿箱！\n标题: ${data.data.title}`);
+                
+                // 显示上传详情
+                this.showUploadSuccess(data.data);
+            } else {
+                this.showToast('error', '上传失败: ' + data.error);
+            }
+        } catch (error) {
+            this.showToast('error', '上传失败: ' + error.message);
+        } finally {
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = '🚀 上传微信';
+        }
+    }
+
+    async saveArticle() {
+        try {
+            // 保存爆款文到后端存储
+            const saveData = {
+                ...this.currentArticle,
+                metadata: {
+                    title: this.currentArticle.topic || '爆款文',
+                    author: '爆款文生成器',
+                    style: 'baokuan',
+                    keywords: this.currentArticle.keywords ? this.currentArticle.keywords.join(',') : '',
+                    createdAt: new Date().toISOString(),
+                    type: 'baokuan' // 标记为爆款文类型
+                }
+            };
+            
+            const response = await fetch('/api/baokuan/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(saveData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.currentArticle.id = data.id;
+                return { ...this.currentArticle, id: data.id };
+            } else {
+                throw new Error(data.error || '保存失败');
+            }
+        } catch (error) {
+            console.error('保存爆款文失败:', error);
+            // 如果保存失败，仍然尝试上传，但没有ID
+            return this.currentArticle;
+        }
+    }
+
+    showUploadSuccess(uploadData) {
+        const successMessage = `
+            <div class="upload-success">
+                <h4>✅ 上传成功！</h4>
+                <p><strong>标题:</strong> ${uploadData.title}</p>
+                <p><strong>草稿ID:</strong> ${uploadData.media_id}</p>
+                <p><strong>类型:</strong> 🔥 爆款文</p>
+                <p><strong>排版:</strong> ✅ 已优化微信排版</p>
+                <small>请到微信公众平台查看草稿并发布</small>
+            </div>
+        `;
+        
+        // 临时显示成功信息
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = successMessage;
+        tempDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); z-index: 1000; max-width: 400px;';
+        document.body.appendChild(tempDiv);
+        
+        setTimeout(() => {
+            document.body.removeChild(tempDiv);
+        }, 5000);
+    }
+
     showToast(type, message) {
         const toast = document.getElementById('toast');
         const icon = toast.querySelector('.toast-icon');
@@ -161,6 +273,9 @@ function generateArticle() {
 }
 function copyToClipboard() {
     baokuanApp.copyToClipboard();
+}
+function uploadToWechat() {
+    baokuanApp.uploadToWechat();
 }
 function showSettings() {
     document.getElementById('settingsModal').classList.add('active');

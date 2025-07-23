@@ -70,46 +70,78 @@
                 <!-- 生成文章视图 -->
                 <div id="generateView" class="view active">
                     <div class="view-header">
-                        <h2>生成诗词赏析文章</h2>
-                        <p>输入诗词信息，AI将为您生成深度赏析文章</p>
+                        <h2 id="generateTitle">生成诗词赏析文章</h2>
+                        <p id="generateDescription">输入诗词信息，AI将为您生成深度赏析文章</p>
+                    </div>
+
+                    <!-- 模式切换器 -->
+                    <div class="mode-switcher">
+                        <div class="mode-tabs">
+                            <button class="mode-tab active" onclick="switchMode('poetry')" id="poetryTab">
+                                🌸 诗词赏析
+                            </button>
+                            <button class="mode-tab" onclick="switchMode('baokuan')" id="baokuanTab">
+                                🔥 爆款文
+                            </button>
+                        </div>
                     </div>
 
                     <div class="generate-container">
                         <div class="input-panel">
-                            <div class="form-group">
-                                <label for="author">作者 *</label>
-                                <input type="text" id="author" placeholder="如：李白" required>
+                            <!-- 诗词赏析表单 -->
+                            <div id="poetryForm" class="form-mode active">
+                                <div class="form-group">
+                                    <label for="author">作者 *</label>
+                                    <input type="text" id="author" placeholder="如：李白" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="title">诗词名称 *</label>
+                                    <input type="text" id="title" placeholder="如：静夜思" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="content">诗词原文（可选）</label>
+                                    <textarea id="content" rows="4" placeholder="如果您知道具体的诗词内容，可以在此输入..."></textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="style">文章风格</label>
+                                    <select id="style">
+                                        <option value="popular">通俗易懂</option>
+                                        <option value="literary">文雅精致</option>
+                                        <option value="emotional">情感丰富</option>
+                                        <option value="academic">学术严谨</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="keywords">关键词（可选）</label>
+                                    <input type="text" id="keywords" placeholder="如：思乡、月夜、孤独">
+                                    <small>用逗号分隔多个关键词</small>
+                                </div>
+                                
+                                <button class="btn btn-primary btn-large" onclick="generateArticle()" id="generateBtn">
+                                    ✨ 生成文章
+                                </button>
                             </div>
-                            
-                            <div class="form-group">
-                                <label for="title">诗词名称 *</label>
-                                <input type="text" id="title" placeholder="如：静夜思" required>
+
+                            <!-- 爆款文表单 -->
+                            <div id="baokuanForm" class="form-mode" style="display: none;">
+                                <div class="form-group">
+                                    <label for="baokuanUrl">爆款文章链接 *</label>
+                                    <input type="url" id="baokuanUrl" placeholder="请输入爆款文章的完整链接" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="baokuanContent">手动输入正文内容（可选）</label>
+                                    <textarea id="baokuanContent" rows="8" placeholder="如果链接无法自动抓取内容，请在此粘贴爆款文章的正文文本"></textarea>
+                                </div>
+                                
+                                <button class="btn btn-primary btn-large" onclick="generateBaokuan()" id="generateBaokuanBtn">
+                                    🚀 生成爆款文
+                                </button>
                             </div>
-                            
-                            <div class="form-group">
-                                <label for="content">诗词原文（可选）</label>
-                                <textarea id="content" rows="4" placeholder="如果您知道具体的诗词内容，可以在此输入..."></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="style">文章风格</label>
-                                <select id="style">
-                                    <option value="popular">通俗易懂</option>
-                                    <option value="literary">文雅精致</option>
-                                    <option value="emotional">情感丰富</option>
-                                    <option value="academic">学术严谨</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="keywords">关键词（可选）</label>
-                                <input type="text" id="keywords" placeholder="如：思乡、月夜、孤独">
-                                <small>用逗号分隔多个关键词</small>
-                            </div>
-                            
-                            <button class="btn btn-primary btn-large" onclick="generateArticle()" id="generateBtn">
-                                ✨ 生成文章
-                            </button>
                         </div>
 
                         <div class="output-panel">

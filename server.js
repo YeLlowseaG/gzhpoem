@@ -365,6 +365,34 @@ app.post('/api/baokuan/generate', async (req, res) => {
     }
 });
 
+// 保存爆款文
+app.post('/api/baokuan/save', async (req, res) => {
+    try {
+        console.log('💾 保存爆款文请求:', JSON.stringify(req.body, null, 2));
+        
+        const articleData = req.body;
+        
+        // 保存到存储
+        const savedArticle = await storageService.saveArticle(articleData);
+        
+        console.log('✅ 爆款文保存成功, ID:', savedArticle.id);
+        
+        res.json({
+            success: true,
+            id: savedArticle.id,
+            message: '爆款文保存成功'
+        });
+        
+    } catch (error) {
+        console.error('❌ 保存爆款文失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '保存爆款文失败',
+            message: error.message
+        });
+    }
+});
+
 // 获取爆款文历史
 app.get('/api/baokuan/history', async (req, res) => {
     try {

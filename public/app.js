@@ -4,6 +4,7 @@
 class PoemApp {
     constructor() {
         this.currentView = 'generate';
+        this.currentMode = 'poetry'; // 'poetry' or 'baokuan'
         this.currentArticle = null;
         this.articles = [];
         this.config = {};
@@ -160,6 +161,50 @@ class PoemApp {
         }
     }
 
+    // ==================== 模式切换 ====================
+    switchMode(modeName) {
+        this.currentMode = modeName;
+        
+        // 更新模式切换按钮状态
+        document.querySelectorAll('.mode-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.getElementById(modeName + 'Tab').classList.add('active');
+        
+        // 切换表单显示
+        document.querySelectorAll('.form-mode').forEach(form => {
+            form.classList.remove('active');
+            form.style.display = 'none';
+        });
+        
+        const targetForm = document.getElementById(modeName + 'Form');
+        if (targetForm) {
+            targetForm.classList.add('active');
+            targetForm.style.display = 'block';
+        }
+        
+        // 更新页面标题和描述
+        if (modeName === 'poetry') {
+            document.getElementById('generateTitle').textContent = '生成诗词赏析文章';
+            document.getElementById('generateDescription').textContent = '输入诗词信息，AI将为您生成深度赏析文章';
+        } else if (modeName === 'baokuan') {
+            document.getElementById('generateTitle').textContent = '生成诗词相关爆款文';
+            document.getElementById('generateDescription').textContent = '输入爆款文章链接，AI将生成诗词文化相关的爆款内容';
+        }
+        
+        // 清空当前文章和输出
+        this.currentArticle = null;
+        this.hideOutput();
+        
+        this.showToast('info', `已切换到${modeName === 'poetry' ? '诗词赏析' : '爆款文'}模式`);
+    }
+
+    hideOutput() {
+        document.getElementById('output').style.display = 'none';
+        document.getElementById('outputPlaceholder').style.display = 'flex';
+        document.getElementById('outputActions').style.display = 'none';
+    }
+
     // ==================== 文章生成 ====================
     async generateArticle() {
         const author = document.getElementById('author').value.trim();
@@ -205,6 +250,114 @@ class PoemApp {
         } finally {
             this.hideLoading();
         }
+    }
+
+    async generateBaokuan() {
+        const url = document.getElementById('baokuanUrl').value.trim();
+        const manualContent = document.getElementById('baokuanContent').value.trim();
+        
+        if (!url && !manualContent) {
+            this.showToast('error', '请输入爆款文章链接或粘贴正文内容');
+            return;
+        }
+        
+        this.showBaokuanLoading();
+        
+        try {
+            const response = await fetch('/api/baokuan/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url,
+                    manualContent
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.displayBaokuanArticle(data);
+                this.currentArticle = data;
+                this.showToast('success', '爆款文生成成功');
+                
+                // 自动滚动到结果区域
+                document.getElementById('output').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                throw new Error(data.error || '生成失败');
+            }
+        } catch (error) {
+            this.showToast('error', '生成失败: ' + error.message);
+        } finally {
+            this.hideBaokuanLoading();
+        }
+    }
+
+    displayBaokuanArticle(result) {
+        const outputElement = document.getElementById('output');
+        const placeholderElement = document.getElementById('outputPlaceholder');
+        const actionsElement = document.getElementById('outputActions');
+        
+        let html = '';
+        
+        if (result.originTitle) {
+            html += `<div class="baokuan-metadata"><strong>原文标题：</strong>${result.originTitle}</div>`;
+        }
+        
+        if (result.originSummary) {
+            html += `<div class="baokuan-metadata"><strong>原文摘要：</strong>${result.originSummary}</div>`;
+        }
+        
+        if (result.topic) {
+            html += `<div class="baokuan-metadata"><strong>爆款选题：</strong>${result.topic}</div>`;
+        }
+        
+        if (result.keywords && result.keywords.length) {
+            html += `<div class="baokuan-metadata"><strong>关键词：</strong>${result.keywords.join('、')}</div>`;
+        }
+        
+        if (result.content) {
+            html += '<div class="article-content"><h4>📝 诗词相关爆款文：</h4>' + this.renderMarkdown(result.content) + '</div>';
+        }
+        
+        outputElement.innerHTML = html;
+        outputElement.style.display = 'block';
+        placeholderElement.style.display = 'none';
+        actionsElement.style.display = 'flex';
+        
+        // 添加文章元数据
+        this.addBaokuanMetadata(result);
+        
+        // 保存当前选择的标题（使用爆款选题）
+        this.selectedTitle = result.topic || null;
+    }
+
+    addBaokuanMetadata(articleData) {
+        const metaElement = document.createElement('div');
+        metaElement.className = 'article-metadata';
+        metaElement.innerHTML = `
+            <small style="color: var(--text-muted); margin-top: 1rem; display: block;">
+                📊 来源: 爆款文生成器 | 
+                ⏰ 生成时间: ${new Date().toLocaleString()} |
+                📝 字数: ${articleData.content ? articleData.content.length : 0}
+            </small>
+        `;
+        
+        document.getElementById('output').appendChild(metaElement);
+    }
+
+    showBaokuanLoading() {
+        document.getElementById('loading').style.display = 'flex';
+        document.getElementById('loading').querySelector('p').textContent = 'AI正在抓取和生成爆款文，请稍候...';
+        document.getElementById('output').style.display = 'none';
+        document.getElementById('outputPlaceholder').style.display = 'none';
+        document.getElementById('generateBaokuanBtn').disabled = true;
+        document.getElementById('generateBaokuanBtn').textContent = '生成中...';
+    }
+
+    hideBaokuanLoading() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('generateBaokuanBtn').disabled = false;
+        document.getElementById('generateBaokuanBtn').textContent = '🚀 生成爆款文';
     }
 
     displayArticle(articleData) {
@@ -383,7 +536,7 @@ class PoemApp {
 
     async uploadToWechat() {
         if (!this.currentArticle) {
-            this.showToast('error', '请先生成文章');
+            this.showToast('error', `请先生成${this.currentMode === 'poetry' ? '文章' : '爆款文'}`);
             return;
         }
         
@@ -394,11 +547,17 @@ class PoemApp {
             uploadBtn.disabled = true;
             uploadBtn.textContent = '🚀 上传中...';
             
+            // 先保存文章到存储系统（如果还没有ID的话）
+            let articleToUpload = this.currentArticle;
+            if (!articleToUpload.id) {
+                articleToUpload = await this.saveArticleBeforeUpload();
+            }
+            
             // 构建上传数据
             const uploadData = {
-                articleId: this.currentArticle.id,
+                articleId: articleToUpload.id,
                 selectedTitle: this.selectedTitle || null,
-                article: this.currentArticle // 传递完整的文章数据
+                article: articleToUpload // 传递完整的文章数据
             };
             
             console.log('上传数据:', uploadData);
@@ -412,7 +571,8 @@ class PoemApp {
             const data = await response.json();
             
             if (data.success) {
-                this.showToast('success', `完整内容包已上传到微信草稿箱！\n标题: ${data.data.title}`);
+                const contentType = this.currentMode === 'poetry' ? '文章' : '爆款文';
+                this.showToast('success', `${contentType}已上传到微信草稿箱！\n标题: ${data.data.title}`);
                 
                 // 显示上传详情
                 this.showUploadSuccess(data.data);
@@ -425,6 +585,51 @@ class PoemApp {
             const uploadBtn = document.getElementById('uploadBtn');
             uploadBtn.disabled = false;
             uploadBtn.textContent = '🚀 上传微信';
+        }
+    }
+
+    async saveArticleBeforeUpload() {
+        try {
+            let saveData;
+            let saveEndpoint;
+            
+            if (this.currentMode === 'baokuan') {
+                // 保存爆款文
+                saveData = {
+                    ...this.currentArticle,
+                    metadata: {
+                        title: this.currentArticle.topic || '爆款文',
+                        author: '爆款文生成器',
+                        style: 'baokuan',
+                        keywords: this.currentArticle.keywords ? this.currentArticle.keywords.join(',') : '',
+                        createdAt: new Date().toISOString(),
+                        type: 'baokuan'
+                    }
+                };
+                saveEndpoint = '/api/baokuan/save';
+            } else {
+                // 保存诗词文章（使用原有逻辑）
+                return this.currentArticle;
+            }
+            
+            const response = await fetch(saveEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(saveData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.currentArticle.id = data.id;
+                return { ...this.currentArticle, id: data.id };
+            } else {
+                throw new Error(data.error || '保存失败');
+            }
+        } catch (error) {
+            console.error('保存文章失败:', error);
+            // 如果保存失败，仍然尝试上传，但没有ID
+            return this.currentArticle;
         }
     }
 
@@ -777,6 +982,14 @@ function switchView(viewName) {
 
 function generateArticle() {
     app.generateArticle();
+}
+
+function generateBaokuan() {
+    app.generateBaokuan();
+}
+
+function switchMode(modeName) {
+    app.switchMode(modeName);
 }
 
 function copyToClipboard() {
