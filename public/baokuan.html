@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爆款文 - 智能生成器</title>
+    <link rel="stylesheet" href="baokuan.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+</head>
+<body>
+    <div class="app">
+        <!-- 顶部导航 -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-icon">🔥</span>
+                    爆款文
+                </h1>
+                <div class="header-actions">
+                    <div class="status-indicator" id="serviceStatus">
+                        <span class="status-dot"></span>
+                        <span class="status-text">服务检查中...</span>
+                    </div>
+                    <button class="btn btn-ghost" onclick="showSettings()">
+                        ⚙️ 设置
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main">
+            <!-- 侧边栏 -->
+            <aside class="sidebar">
+                <nav class="nav">
+                    <a href="#generate" class="nav-item active" onclick="switchView('generate')">
+                        ✨ 生成文章
+                    </a>
+                    <a href="#history" class="nav-item" onclick="switchView('history')">
+                        📚 历史记录
+                    </a>
+                    <a href="#wechat" class="nav-item" onclick="switchView('wechat')">
+                        📱 微信管理
+                    </a>
+                    <a href="#stats" class="nav-item" onclick="switchView('stats')">
+                        📊 使用统计
+                    </a>
+                </nav>
+                
+                <!-- 快速操作 -->
+                <div class="quick-actions">
+                    <h4>快速操作</h4>
+                    <button class="btn btn-sm btn-outline" onclick="testAIService()">
+                        🔌 测试AI
+                    </button>
+                    <button class="btn btn-sm btn-outline" onclick="testWechatService()">
+                        📱 测试微信
+                    </button>
+                    <button class="btn btn-sm btn-outline" onclick="exportData()">
+                        💾 导出数据
+                    </button>
+                </div>
+            </aside>
+
+            <!-- 内容区域 -->
+            <div class="content">
+                <!-- 生成文章视图 -->
+                <div id="generateView" class="view active">
+                    <div class="view-header">
+                        <h2>生成诗词赏析文章</h2>
+                        <p>输入诗词信息，AI将为您生成深度赏析文章</p>
+                    </div>
+
+                    <div class="generate-container">
+                        <div class="input-panel">
+                            <div class="form-group">
+                                <label for="articleUrl">爆款文章链接 *</label>
+                                <input type="url" id="articleUrl" placeholder="请输入爆款文章的完整链接" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="manualContent">手动输入正文内容（可选）</label>
+                                <textarea id="manualContent" rows="8" placeholder="如果链接无法自动抓取内容，请在此粘贴爆款文章的正文文本"></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-large" onclick="generateArticle()" id="generateBtn">
+                                🚀 生成爆款文
+                            </button>
+                        </div>
+                        <div class="output-panel">
+                            <div class="panel-header">
+                                <h3>生成结果</h3>
+                                <div class="panel-actions" id="outputActions" style="display: none;">
+                                    <button class="btn btn-sm btn-outline" onclick="copyToClipboard()">
+                                        📋 复制
+                                    </button>
+                                    <button class="btn btn-sm btn-primary" onclick="uploadToWechat()" id="uploadBtn">
+                                        🚀 上传微信
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="output-content">
+                                <div id="loading" class="loading" style="display: none;">
+                                    <div class="loading-spinner"></div>
+                                    <p>AI正在抓取和生成爆款文，请稍候...</p>
+                                </div>
+                                <div id="output" class="output-area" style="display: none;">
+                                    <!-- 生成的爆款文将在这里显示 -->
+                                </div>
+                                <div id="outputPlaceholder" class="output-placeholder">
+                                    <div class="placeholder-icon">📝</div>
+                                    <p>请输入爆款文章链接并点击“生成爆款文”</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 历史记录视图 -->
+                <div id="historyView" class="view">
+                    <div class="view-header">
+                        <h2>历史文章</h2>
+                        <div class="view-actions">
+                            <input type="text" id="searchInput" placeholder="搜索文章..." class="search-input">
+                            <button class="btn btn-outline" onclick="searchArticles()">🔍 搜索</button>
+                        </div>
+                    </div>
+                    
+                    <div id="articleList" class="article-list">
+                        <!-- 文章列表将在这里显示 -->
+                    </div>
+                    
+                    <div id="pagination" class="pagination">
+                        <!-- 分页将在这里显示 -->
+                    </div>
+                </div>
+
+                <!-- 微信管理视图 -->
+                <div id="wechatView" class="view">
+                    <div class="view-header">
+                        <h2>微信公众号管理</h2>
+                        <p>微信配置已在服务器端设置，可直接上传文章到草稿箱</p>
+                    </div>
+                    
+                    <div class="wechat-container">
+                        <div class="config-panel">
+                            <h3>连接状态</h3>
+                            <div class="form-group">
+                                <div class="connection-status" id="wechatStatus">
+                                    <span class="status-dot connected"></span>
+                                    <span>微信服务已配置</span>
+                                </div>
+                            </div>
+                            
+                            <button class="btn btn-primary" onclick="testWechatConnection()">
+                                🔗 测试连接
+                            </button>
+                        </div>
+                        
+                        <div class="help-panel">
+                            <h3>使用说明</h3>
+                            <div class="help-content">
+                                <h4>📤 上传文章到微信</h4>
+                                <ol>
+                                    <li>在"生成文章"页面生成文章</li>
+                                    <li>点击"上传微信"按钮</li>
+                                    <li>文章将自动上传到草稿箱</li>
+                                    <li>在微信公众平台查看和发布</li>
+                                </ol>
+                                
+                                <h4>⚠️ IP白名单设置</h4>
+                                <p>请在微信公众平台的"基本配置"中添加以下IP到白名单：</p>
+                                <code>14.145.14.226</code>
+                                
+                                <h4>✅ 功能特性</h4>
+                                <ul>
+                                    <li>✨ AI智能生成高质量文章</li>
+                                    <li>🎯 多种文章风格可选</li>
+                                    <li>📤 一键上传到微信草稿箱</li>
+                                    <li>📚 历史文章管理</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 统计视图 -->
+                <div id="statsView" class="view">
+                    <div class="view-header">
+                        <h2>使用统计</h2>
+                        <p>查看您的使用情况和数据统计</p>
+                    </div>
+                    
+                    <div id="statsContent" class="stats-content">
+                        <!-- 统计数据将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 设置弹窗 -->
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>系统设置</h3>
+                    <button class="modal-close" onclick="hideSettings()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-tabs">
+                        <button class="tab-btn active" onclick="switchSettingsTab('ai')">AI配置</button>
+                        <button class="tab-btn" onclick="switchSettingsTab('general')">通用设置</button>
+                    </div>
+                    
+                    <div id="aiSettings" class="settings-tab active">
+                        <h4>AI服务配置</h4>
+                        <div class="form-group">
+                            <label for="aiProvider">AI服务提供商</label>
+                            <select id="aiProvider">
+                                <option value="qwen">通义千问</option>
+                                <option value="openai">OpenAI</option>
+                                <option value="deepseek">DeepSeek</option>
+                            </select>
+                        </div>
+                        <!-- 更多AI配置选项 -->
+                    </div>
+                    
+                    <div id="generalSettings" class="settings-tab">
+                        <h4>通用设置</h4>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="autoSave"> 自动保存文章
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="darkMode"> 深色模式
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="hideSettings()">取消</button>
+                    <button class="btn btn-primary" onclick="saveSettings()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 全局提示 -->
+        <div id="toast" class="toast">
+            <div class="toast-content">
+                <span class="toast-icon"></span>
+                <span class="toast-message"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="baokuan.js"></script>
+</body>
+</html> 

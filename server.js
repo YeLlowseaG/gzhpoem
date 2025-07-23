@@ -6,6 +6,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs').promises;
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 // 服务模块
 const AIService = require('./services/ai-service');
@@ -14,7 +16,7 @@ const KVStorageService = require('./services/kv-storage-service');
 const ConfigService = require('./services/config-service');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = 8080;
 
 // 初始化服务
 const aiService = new AIService();
@@ -230,6 +232,113 @@ app.delete('/api/articles/:id', async (req, res) => {
         res.status(500).json({
             success: false,
             error: '删除文章失败'
+        });
+    }
+});
+
+// ==================== 爆款文相关接口 ====================
+
+// 生成爆款文（新版逻辑）
+app.post('/api/baokuan/generate', async (req, res) => {
+    const { url, manualContent } = req.body;
+    if (!url && !manualContent) {
+        return res.json({ success: false, error: '缺少爆款文章链接或正文内容' });
+    }
+    try {
+        // 1. 优先用手动正文
+        let originContent = manualContent ? manualContent.trim() : '';
+        let originTitle = '', originSummary = '';
+        if (originContent) {
+            originTitle = url ? url : '手动输入';
+            originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
+        } else {
+            // 2. 抓取网页内容
+            const response = await axios.get(url, { timeout: 10000 });
+            const html = response.data;
+            const $ = cheerio.load(html);
+            originTitle = $('title').text() || '';
+            if ($('article').length) {
+                originContent = $('article').text();
+            } else if ($('.rich_media_content').length) {
+                originContent = $('.rich_media_content').text();
+            } else if ($('body').length) {
+                originContent = $('body').text();
+            }
+            originContent = originContent.replace(/\s+/g, ' ').trim();
+            originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
+        }
+        // 3. AI提炼选题和关键词
+        let topic = '', keywords = [];
+        if (aiService.isConfigured()) {
+            const extractPrompt = `请阅读以下文章内容，提炼出一个最有爆款潜力的选题，并给出5个相关关键词。\n\n文章内容：${originContent.slice(0, 2000)}\n\n输出格式：\n选题：xxx\n关键词：xxx,xxx,xxx,xxx,xxx`;
+            const aiExtract = await aiService.generateWithAI({
+                author: '', title: '', style: '', keywords: '', content: extractPrompt
+            });
+            if (aiExtract && aiExtract.content) {
+                const topicMatch = aiExtract.content.match(/选题[:：]\s*(.+)/);
+                const keywordsMatch = aiExtract.content.match(/关键词[:：]\s*([\u4e00-\u9fa5A-Za-z0-9,，]+)/);
+                topic = topicMatch ? topicMatch[1].trim() : '';
+                keywords = keywordsMatch ? keywordsMatch[1].replace(/，/g, ',').split(',').map(s => s.trim()) : [];
+            }
+        }
+        // 4. AI生成诗词相关爆款文
+        let finalContent = '';
+        if (aiService.isConfigured() && topic) {
+            const genPrompt = `请以“${topic}”为主题，结合以下关键词：${keywords.join('、')}，创作一篇与中国诗词文化相关的原创文章，要求内容新颖、有深度、有诗意，适合公众号爆款。`;
+            const aiGen = await aiService.generateWithAI({
+                author: '', title: topic, style: 'popular', keywords: keywords.join(','), content: genPrompt
+            });
+            finalContent = aiGen && aiGen.content ? aiGen.content : '';
+        }
+        res.json({
+            success: true,
+            originTitle,
+            originSummary,
+            topic,
+            keywords,
+            content: finalContent
+        });
+    } catch (error) {
+        res.json({ success: false, error: '爆款文生成失败: ' + error.message });
+    }
+});
+
+// 获取爆款文历史
+app.get('/api/baokuan/history', async (req, res) => {
+    try {
+        const { page = 1, limit = 20, search } = req.query;
+        const articles = await storageService.getArticles({
+            page: parseInt(page),
+            limit: parseInt(limit),
+            search
+        });
+        res.json({
+            success: true,
+            data: articles
+        });
+    } catch (error) {
+        console.error('获取爆款文历史失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取爆款文历史失败'
+        });
+    }
+});
+
+// 删除爆款文
+app.delete('/api/baokuan/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await storageService.deleteArticle(id);
+        res.json({
+            success: true,
+            message: '爆款文删除成功'
+        });
+    } catch (error) {
+        console.error('删除爆款文失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '删除爆款文失败'
         });
     }
 });
