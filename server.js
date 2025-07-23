@@ -850,10 +850,10 @@ app.post('/api/wechat/upload', async (req, res) => {
 
 // ==================== 小绿书图片生成接口 ====================
 
-// 生成小绿书图片
-app.post('/api/xiaolvshu/generate', async (req, res) => {
+// 生成小绿书图片 - 流式生成版本  
+app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
     try {
-        const { content, title, author, template = 'classic', useAIGeneration = false } = req.body;
+        const { content, title, author, template = 'classic', useAIGeneration = 'false' } = req.query;
         
         if (!content) {
             return res.status(400).json({
@@ -867,17 +867,152 @@ app.post('/api/xiaolvshu/generate', async (req, res) => {
         console.log('🎨 使用模板:', template);
         console.log('🤖 AI生成模式:', useAIGeneration);
         
-        // 生成多张图片（支持AI智能分段和AI图片生成）
+        // 设置SSE响应头
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Cache-Control'
+        });
+
+        // 发送进度消息的辅助函数
+        const sendProgress = (step, message, data = null) => {
+            const eventData = {
+                step,
+                message,
+                timestamp: new Date().toISOString(),
+                data
+            };
+            res.write(`data: ${JSON.stringify(eventData)}\n\n`);
+        };
+
+        try {
+            // 第1步：AI智能分段
+            sendProgress(1, '🤖 AI正在智能分段中...');
+            
+            const segments = await svgGenerator.intelligentSegmentation(content, template, aiService);
+            sendProgress(2, `✅ AI分段完成，共${segments.length}页`, { totalPages: segments.length });
+
+            // 第2步：逐个生成图片
+            const images = [];
+            for (let i = 0; i < segments.length; i++) {
+                const pageNum = i + 1;
+                sendProgress(3 + i, `🎨 正在生成第${pageNum}张图片 (${pageNum}/${segments.length})...`);
+                
+                try {
+                    let pageImage;
+                    
+                    if (useAIGeneration === 'true' && aiService.isConfigured()) {
+                        // 尝试AI图片生成
+                        const imagePrompt = `${svgGenerator.templates[template].name}风格的文字卡片背景图，温暖色调，简洁美观，高质量，4k分辨率`;
+                        
+                        const aiImageResult = await aiService.generateCoverImage({
+                            author: author || '诗词',
+                            title: `${title}-第${pageNum}页`,
+                            content: segments[i],
+                            style: template,
+                            customPrompt: imagePrompt
+                        });
+
+                        if (aiImageResult && aiImageResult.success) {
+                            pageImage = {
+                                aiGenerated: true,
+                                imageUrl: aiImageResult.imageUrl,
+                                dataUrl: aiImageResult.imageUrl,
+                                content: segments[i],
+                                pageNumber: pageNum,
+                                width: 750,
+                                height: 1334
+                            };
+                            sendProgress(3 + i, `✅ 第${pageNum}张AI图片生成成功！`);
+                        } else {
+                            throw new Error('AI图片生成失败');
+                        }
+                    } else {
+                        throw new Error('使用SVG生成');
+                    }
+                    
+                    if (!pageImage) {
+                        // 降级到SVG生成
+                        sendProgress(3 + i, `📝 第${pageNum}张图片降级到SVG生成...`);
+                        pageImage = await svgGenerator.generateSinglePageSVG({
+                            content: segments[i],
+                            title: i === 0 ? title : '',
+                            author: i === 0 ? author : '',
+                            template: template,
+                            pageNumber: pageNum,
+                            totalPages: segments.length
+                        });
+                        sendProgress(3 + i, `✅ 第${pageNum}张SVG图片生成成功！`);
+                    }
+                    
+                    if (pageImage) {
+                        images.push(pageImage);
+                        // 发送单张图片结果
+                        sendProgress(3 + i, `🎉 第${pageNum}张图片完成！`, { 
+                            image: pageImage,
+                            completed: pageNum,
+                            total: segments.length 
+                        });
+                    }
+                } catch (error) {
+                    sendProgress(3 + i, `⚠️ 第${pageNum}张图片生成失败: ${error.message}`);
+                }
+            }
+
+            // 最终完成
+            sendProgress(999, `🎉 所有图片生成完成！共${images.length}张`, {
+                finalResult: {
+                    success: true,
+                    images: images,
+                    totalPages: images.length,
+                    template: svgGenerator.templates[template].name,
+                    generationMode: useAIGeneration === 'true' ? 'AI生成' : 'SVG生成'
+                }
+            });
+
+        } catch (error) {
+            sendProgress(999, `❌ 生成失败: ${error.message}`, { error: error.message });
+        }
+
+        res.end();
+        
+    } catch (error) {
+        console.error('❌ 小绿书接口错误:', error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                error: '图片生成服务异常: ' + error.message
+            });
+        }
+    }
+});
+
+// 保留原来的POST接口作为备用
+app.post('/api/xiaolvshu/generate', async (req, res) => {
+    try {
+        const { content, title, author, template = 'classic', useAIGeneration = false } = req.body;
+        
+        if (!content) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少文章内容'
+            });
+        }
+        
+        console.log('📸 开始生成小绿书图片...(备用接口)');
+        
+        // 使用原来的生成方法
         const result = await svgGenerator.generateImages(content, {
             title: title || '诗词赏析',
             author: author || '',
             template: template,
-            aiService: aiService,  // 传递AI服务用于智能分段
-            useAIGeneration: useAIGeneration  // 是否使用完全AI生成
+            aiService: aiService,
+            useAIGeneration: useAIGeneration
         });
         
         if (result.success) {
-            console.log('✅ 小绿书图片生成完成, 共', result.totalPages, '张');
             res.json({
                 success: true,
                 images: result.images,
@@ -885,7 +1020,6 @@ app.post('/api/xiaolvshu/generate', async (req, res) => {
                 template: result.template
             });
         } else {
-            console.error('❌ 小绿书图片生成失败:', result.error);
             res.status(500).json({
                 success: false,
                 error: '图片生成失败: ' + result.error
@@ -893,7 +1027,7 @@ app.post('/api/xiaolvshu/generate', async (req, res) => {
         }
         
     } catch (error) {
-        console.error('❌ 小绿书接口错误:', error);
+        console.error('❌ 小绿书备用接口错误:', error);
         res.status(500).json({
             success: false,
             error: '图片生成服务异常: ' + error.message

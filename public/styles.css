@@ -1280,6 +1280,48 @@ hr {
     border-top: 1px solid var(--border-color);
 }
 
+/* 小绿书生成中样式 */
+.xiaolvshu-image-card.generating {
+    opacity: 0.7;
+    border: 2px dashed var(--border-color);
+}
+
+.xiaolvshu-image-placeholder {
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--background-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+}
+
+.generating-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-top: 3px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+.xiaolvshu-image-placeholder p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.xiaolvshu-image-content {
+    margin-bottom: 1rem;
+}
+
+.xiaolvshu-batch-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .main {

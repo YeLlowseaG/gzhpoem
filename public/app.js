@@ -1693,6 +1693,78 @@ async function uploadXiaoLvShuToWechat() {
     // TODO: 实现上传到微信图片&文字草稿的功能
 }
 
+/**
+ * 实时显示小绿书生成进度
+ */
+function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
+    const outputElement = document.getElementById('output');
+    const outputPlaceholder = document.getElementById('outputPlaceholder');
+    const outputActions = document.getElementById('outputActions');
+    
+    // 显示输出区域
+    outputElement.style.display = 'block';
+    outputPlaceholder.style.display = 'none';
+    outputActions.style.display = 'flex';
+    
+    // 创建实时进度显示
+    outputElement.innerHTML = `
+        <div class="xiaolvshu-result-info">
+            <h4>📸 小绿书生成进度</h4>
+            <p>已完成 ${generatedImages.length}/${totalPages} 张图片</p>
+        </div>
+        
+        <div class="xiaolvshu-images-grid">
+            ${Array.from({length: totalPages}, (_, i) => {
+                const pageNum = i + 1;
+                const image = generatedImages.find(img => img.pageNumber === pageNum);
+                
+                if (image) {
+                    // 已生成的图片
+                    return `
+                        <div class="xiaolvshu-image-card">
+                            <div class="xiaolvshu-page-number">${pageNum}/${totalPages}</div>
+                            <div class="xiaolvshu-image-content">
+                                ${image.aiGenerated ? 
+                                    `<img src="${image.imageUrl}" alt="第${pageNum}页" style="width: 100%; height: auto; border-radius: 8px;">` :
+                                    `<div style="width: 100%; height: 300px; background: url('data:image/svg+xml;base64,${image.base64}') center/contain no-repeat; border-radius: 8px;"></div>`
+                                }
+                            </div>
+                            <div class="xiaolvshu-image-actions">
+                                <button class="btn btn-sm btn-outline" onclick="downloadSingleXiaoLvShu(${i})">
+                                    💾 下载
+                                </button>
+                                <button class="btn btn-sm btn-outline" onclick="previewXiaoLvShuImage(${i})">
+                                    👁️ 预览
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // 未生成的占位符
+                    return `
+                        <div class="xiaolvshu-image-card generating">
+                            <div class="xiaolvshu-page-number">${pageNum}/${totalPages}</div>
+                            <div class="xiaolvshu-image-placeholder">
+                                <div class="generating-spinner"></div>
+                                <p>生成中...</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('')}
+        </div>
+        
+        <div class="xiaolvshu-batch-actions">
+            <button class="btn btn-outline" onclick="downloadAllXiaoLvShu()" ${generatedImages.length === 0 ? 'disabled' : ''}>
+                💾 下载已完成 (${generatedImages.length})
+            </button>
+            <button class="btn btn-primary" onclick="uploadXiaoLvShuToWechat()" ${generatedImages.length === 0 ? 'disabled' : ''}>
+                🚀 上传到微信 (${generatedImages.length})
+            </button>
+        </div>
+    `;
+}
+
 // 独立的小绿书生成函数（直接从表单输入）
 async function generateXiaoLvShuDirect() {
     const title = document.getElementById('xiaolvshuTitle').value.trim() || '内容图片';
@@ -1725,29 +1797,79 @@ async function generateXiaoLvShuDirect() {
         
         console.log('📸 开始生成小绿书图片...', useAIGeneration ? '(AI完全生成模式)' : '(SVG模板模式)');
         
-        const response = await fetch('/api/xiaolvshu/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content: content,
-                title: title,
-                author: author,
-                template: template,
-                useAIGeneration: useAIGeneration
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // 显示生成结果
-            displayXiaoLvShuDirectResult(data);
-            app.showToast('success', `小绿书生成成功！共 ${data.totalPages} 张图片`);
-        } else {
-            app.showToast('error', '生成失败: ' + data.error);
-        }
+        // 使用EventSource进行流式接收
+        const eventSource = new EventSource('/api/xiaolvshu/generate-stream?' + new URLSearchParams({
+            content: content,
+            title: title,
+            author: author,
+            template: template,
+            useAIGeneration: useAIGeneration
+        }));
+
+        const generatedImages = [];
+        let totalPages = 0;
+
+        eventSource.onmessage = function(event) {
+            try {
+                const progressData = JSON.parse(event.data);
+                console.log('📡 收到进度:', progressData);
+
+                // 更新进度显示
+                const loadingElement = document.getElementById('loading');
+                const loadingText = loadingElement.querySelector('p');
+                loadingText.textContent = progressData.message;
+
+                // 处理不同的进度步骤
+                if (progressData.step === 2 && progressData.data?.totalPages) {
+                    totalPages = progressData.data.totalPages;
+                    loadingText.textContent = `${progressData.message} - 准备生成图片...`;
+                }
+                
+                // 单张图片完成
+                if (progressData.data?.image) {
+                    generatedImages.push(progressData.data.image);
+                    loadingText.textContent = `${progressData.message} (${progressData.data.completed}/${progressData.data.total})`;
+                    
+                    // 实时显示已生成的图片
+                    displayPartialXiaoLvShuResult(generatedImages, progressData.data.total);
+                }
+
+                // 全部完成
+                if (progressData.step === 999) {
+                    eventSource.close();
+                    
+                    if (progressData.data?.finalResult) {
+                        const finalData = progressData.data.finalResult;
+                        displayXiaoLvShuDirectResult(finalData);
+                        app.showToast('success', `🎉 小绿书生成完成！共 ${finalData.totalPages} 张图片`);
+                    } else if (progressData.data?.error) {
+                        app.showToast('error', '生成失败: ' + progressData.data.error);
+                    }
+                    
+                    // 恢复按钮状态
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = originalText;
+                    document.getElementById('loading').style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error('解析进度数据失败:', error);
+            }
+        };
+
+        eventSource.onerror = function(event) {
+            console.error('EventSource失败:', event);
+            eventSource.close();
+            app.showToast('error', '连接中断，请重试');
+            
+            // 恢复按钮状态
+            generateBtn.disabled = false;
+            generateBtn.textContent = originalText;
+            document.getElementById('loading').style.display = 'none';
+        };
+
+        // 不需要等待，因为是流式处理
+        return;
         
     } catch (error) {
         console.error('小绿书生成失败:', error);
