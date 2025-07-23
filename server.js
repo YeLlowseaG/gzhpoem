@@ -7,6 +7,11 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs').promises;
 const axios = require('axios');
+axios.get('https://api.ipify.org?format=json').then(res => {
+  console.log('🌐 当前出口IP:', res.data.ip, '（请加入微信白名单）');
+}).catch(err => {
+  console.warn('无法获取出口IP:', err.message);
+});
 const cheerio = require('cheerio');
 
 // 服务模块
@@ -50,6 +55,63 @@ app.get('/health', (req, res) => {
             storage: storageService.isReady()
         }
     });
+});
+
+// 获取当前服务器出口 IP（用于微信白名单）
+app.get('/api/ip', async (req, res) => {
+    try {
+        console.log('🔍 获取服务器出口IP...');
+        
+        // 同时查询多个 IP 检测服务
+        const ipCheckers = [
+            { name: 'ipify', url: 'https://api.ipify.org?format=json' },
+            { name: 'httpbin', url: 'https://httpbin.org/ip' },
+            { name: 'ip-api', url: 'http://ip-api.com/json' }
+        ];
+        
+        const results = [];
+        
+        for (const checker of ipCheckers) {
+            try {
+                const response = await axios.get(checker.url, { timeout: 5000 });
+                const ip = response.data.ip || response.data.origin || response.data.query;
+                if (ip) {
+                    results.push({ service: checker.name, ip: ip });
+                    console.log(`📍 ${checker.name}: ${ip}`);
+                }
+            } catch (error) {
+                console.warn(`❌ ${checker.name} 查询失败:`, error.message);
+            }
+        }
+        
+        // 获取请求头中的 IP 信息
+        const headerIps = {
+            'x-forwarded-for': req.headers['x-forwarded-for'],
+            'x-real-ip': req.headers['x-real-ip'],
+            'cf-connecting-ip': req.headers['cf-connecting-ip'],
+            'x-vercel-forwarded-for': req.headers['x-vercel-forwarded-for']
+        };
+        
+        const currentIp = results.length > 0 ? results[0].ip : 'unknown';
+        console.log(`🌐 当前出口IP: ${currentIp} （请添加到微信白名单）`);
+        
+        res.json({
+            success: true,
+            currentIp: currentIp,
+            allResults: results,
+            headers: headerIps,
+            message: `请将 ${currentIp} 添加到微信公众平台的IP白名单中`,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ 获取IP失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取IP失败',
+            message: error.message
+        });
+    }
 });
 
 // ==================== AI 相关接口 ====================
