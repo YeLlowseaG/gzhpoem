@@ -761,6 +761,57 @@ app.delete('/api/baokuan/:id', async (req, res) => {
     }
 });
 
+// 上传小绿书到微信草稿
+app.post('/api/xiaolvshu/upload-wechat', async (req, res) => {
+    try {
+        const { images, title } = req.body;
+        
+        if (!images || images.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少图片数据'
+            });
+        }
+        
+        // 使用环境变量中的微信配置
+        const appId = process.env.WECHAT_APP_ID;
+        const appSecret = process.env.WECHAT_APP_SECRET;
+        
+        if (!appId || !appSecret) {
+            return res.status(400).json({
+                success: false,
+                error: '服务器未配置微信公众号信息'
+            });
+        }
+        
+        console.log('📸 小绿书微信上传请求:', { 
+            imageCount: images.length, 
+            title: title || '未命名' 
+        });
+        
+        // 准备小绿书数据
+        const xiaolvshuData = {
+            title: title || '图文分享',
+            images: images.filter(img => img.dataUrl) // 只处理有图片数据的
+        };
+        
+        console.log(`📊 有效图片数量: ${xiaolvshuData.images.length}`);
+        
+        // 上传到微信草稿
+        const result = await wechatService.uploadXiaoLvShuToDraft(xiaolvshuData, appId, appSecret);
+        
+        res.json(result);
+        
+    } catch (error) {
+        console.error('小绿书上传到微信失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '上传失败',
+            message: error.message
+        });
+    }
+});
+
 // ==================== 微信公众号相关接口 ====================
 
 // 测试微信连接

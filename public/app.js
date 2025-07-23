@@ -1689,8 +1689,57 @@ async function uploadXiaoLvShuToWechat() {
         return;
     }
     
-    app.showToast('info', '小绿书微信上传功能开发中...');
-    // TODO: 实现上传到微信图片&文字草稿的功能
+    // 检查图片是否都有dataUrl
+    const validImages = app.currentXiaoLvShuImages.filter(img => img.dataUrl);
+    if (validImages.length === 0) {
+        app.showToast('error', '图片数据不完整，请重新生成');
+        return;
+    }
+    
+    if (validImages.length < app.currentXiaoLvShuImages.length) {
+        const confirmed = confirm(`有 ${app.currentXiaoLvShuImages.length - validImages.length} 张图片数据不完整，是否只上传 ${validImages.length} 张有效图片？`);
+        if (!confirmed) return;
+    }
+    
+    const uploadBtn = event.target;
+    const originalText = uploadBtn.textContent;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = '上传中...';
+    
+    try {
+        app.showToast('info', '开始上传小绿书到微信草稿...');
+        
+        // 获取标题（从页面或默认）
+        const titleElement = document.getElementById('xiaolvshuTitle');
+        const title = titleElement ? titleElement.value.trim() : '图文分享';
+        
+        const response = await fetch('/api/xiaolvshu/upload-wechat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                images: validImages,
+                title: title || '图文分享'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            app.showToast('success', result.message || '小绿书已上传到微信草稿箱');
+            console.log('✅ 小绿书上传成功:', result.data);
+        } else {
+            throw new Error(result.message || result.error || '上传失败');
+        }
+        
+    } catch (error) {
+        console.error('小绿书上传失败:', error);
+        app.showToast('error', '上传失败: ' + error.message);
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = originalText;
+    }
 }
 
 /**

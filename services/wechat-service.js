@@ -240,6 +240,182 @@ class WechatService {
     }
 
     /**
+     * 上传小绿书到草稿箱（多图片+文字）
+     */
+    async uploadXiaoLvShuToDraft(xiaolvshuData, appId, appSecret) {
+        try {
+            const token = await this.getAccessToken(appId, appSecret);
+            
+            console.log('📸 开始上传小绿书到草稿箱...');
+            console.log(`📊 图片数量: ${xiaolvshuData.images.length}`);
+            
+            // 1. 批量上传图片到微信素材库
+            const uploadedImages = [];
+            for (let i = 0; i < xiaolvshuData.images.length; i++) {
+                const image = xiaolvshuData.images[i];
+                console.log(`📸 上传第${i + 1}张图片...`);
+                
+                try {
+                    const mediaId = await this.uploadImageFromDataUrl(image.dataUrl, token);
+                    uploadedImages.push({
+                        mediaId: mediaId,
+                        pageNumber: image.pageNumber,
+                        content: image.content
+                    });
+                    console.log(`✅ 第${i + 1}张图片上传成功`);
+                } catch (error) {
+                    console.error(`❌ 第${i + 1}张图片上传失败:`, error.message);
+                    // 继续上传其他图片
+                }
+            }
+            
+            if (uploadedImages.length === 0) {
+                throw new Error('没有图片上传成功');
+            }
+            
+            // 2. 构建文章内容（图片+文字混排）
+            let wechatContent = this.buildXiaoLvShuContent(uploadedImages);
+            
+            // 3. 使用第一张图片作为封面
+            const thumbMediaId = uploadedImages[0].mediaId;
+            
+            // 4. 生成标题
+            const title = xiaolvshuData.title || '图文分享';
+            
+            // 5. 构建草稿数据
+            const draftData = {
+                articles: [{
+                    title: title,
+                    author: '最美诗词',
+                    digest: this.generateXiaoLvShuDigest(xiaolvshuData),
+                    content: wechatContent,
+                    content_source_url: '',
+                    thumb_media_id: thumbMediaId,
+                    show_cover_pic: 1,
+                    need_open_comment: 1,
+                    only_fans_can_comment: 0
+                }]
+            };
+            
+            console.log('📄 小绿书草稿数据构建完成');
+            
+            // 6. 上传草稿
+            const response = await axios.post(
+                `https://api.weixin.qq.com/cgi-bin/draft/add?access_token=${token}`,
+                draftData,
+                { timeout: 30000 }
+            );
+            
+            if (response.data.errcode && response.data.errcode !== 0) {
+                throw new Error(`草稿上传失败: ${response.data.errmsg}`);
+            }
+            
+            console.log('✅ 小绿书上传成功');
+            return {
+                success: true,
+                message: `小绿书已上传到草稿箱（${uploadedImages.length}张图片）`,
+                data: {
+                    media_id: response.data.media_id,
+                    title: title,
+                    imageCount: uploadedImages.length,
+                    totalImages: xiaolvshuData.images.length
+                }
+            };
+            
+        } catch (error) {
+            console.error('❌ 上传小绿书失败:', error.message);
+            return {
+                success: false,
+                message: '小绿书上传失败',
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * 从DataURL上传图片到微信素材库
+     */
+    async uploadImageFromDataUrl(dataUrl, token) {
+        try {
+            // 将DataURL转换为Buffer
+            const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+            const imageBuffer = Buffer.from(base64Data, 'base64');
+            
+            // 创建FormData
+            const formData = new FormData();
+            formData.append('media', imageBuffer, {
+                filename: 'xiaolvshu.png',
+                contentType: 'image/png'
+            });
+            formData.append('type', 'image');
+            
+            // 上传到微信
+            const response = await axios.post(
+                `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${token}&type=image`,
+                formData,
+                {
+                    headers: formData.getHeaders(),
+                    timeout: 30000
+                }
+            );
+            
+            if (response.data.errcode && response.data.errcode !== 0) {
+                throw new Error(`图片上传失败: ${response.data.errmsg}`);
+            }
+            
+            return response.data.media_id;
+            
+        } catch (error) {
+            console.error('上传图片失败:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * 构建小绿书微信内容（图文混排）
+     */
+    buildXiaoLvShuContent(uploadedImages) {
+        let content = '<p>📸 图文分享</p>\n\n';
+        
+        uploadedImages.forEach((img, index) => {
+            // 添加图片
+            content += `<img src="media://${img.mediaId}" alt="第${img.pageNumber}页" />\n\n`;
+            
+            // 添加对应的文字内容（如果有）
+            if (img.content && img.content.trim()) {
+                const formattedText = img.content
+                    .split('\n')
+                    .filter(line => line.trim())
+                    .map(line => `<p>${line}</p>`)
+                    .join('\n');
+                content += `${formattedText}\n\n`;
+            }
+            
+            // 页面分隔
+            if (index < uploadedImages.length - 1) {
+                content += '<p>- - - - -</p>\n\n';
+            }
+        });
+        
+        content += '<p>🌸 分享自「最美诗词」小绿书</p>';
+        
+        return content;
+    }
+
+    /**
+     * 生成小绿书摘要
+     */
+    generateXiaoLvShuDigest(xiaolvshuData) {
+        const imageCount = xiaolvshuData.images.length;
+        const firstContent = xiaolvshuData.images[0]?.content || '';
+        const preview = firstContent.length > 50 ? 
+            firstContent.substring(0, 50) + '...' : 
+            firstContent;
+        
+        return `图文分享 · 共${imageCount}张 ${preview}`;
+    }
+
+    /**
      * 为微信公众号格式化内容（优化排版）
      */
     formatContentForWechat(content) {
