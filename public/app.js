@@ -1683,7 +1683,9 @@ function downloadAllXiaoLvShu() {
 }
 
 // 上传小绿书到微信（图片&文字模式）
-async function uploadXiaoLvShuToWechat() {
+async function uploadXiaoLvShuToWechat(event) {
+    console.log('🚀 uploadXiaoLvShuToWechat函数被调用');
+    
     if (!app.currentXiaoLvShuImages || app.currentXiaoLvShuImages.length === 0) {
         app.showToast('error', '没有可上传的图片');
         return;
@@ -1701,7 +1703,13 @@ async function uploadXiaoLvShuToWechat() {
         if (!confirmed) return;
     }
     
-    const uploadBtn = event.target;
+    // 获取触发事件的按钮
+    const uploadBtn = event ? event.target : document.querySelector('button[onclick*="uploadXiaoLvShuToWechat"]');
+    if (!uploadBtn) {
+        app.showToast('error', '找不到上传按钮');
+        return;
+    }
+    
     const originalText = uploadBtn.textContent;
     uploadBtn.disabled = true;
     uploadBtn.textContent = '上传中...';
@@ -1809,7 +1817,7 @@ function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
             <button class="btn btn-outline" onclick="downloadAllXiaoLvShu()" ${generatedImages.length === 0 ? 'disabled' : ''}>
                 💾 下载已完成 (${generatedImages.length})
             </button>
-            <button class="btn btn-primary" onclick="uploadXiaoLvShuToWechat()" ${generatedImages.length === 0 ? 'disabled' : ''}>
+            <button class="btn btn-primary" onclick="uploadXiaoLvShuToWechat(event)" ${generatedImages.length === 0 ? 'disabled' : ''}>
                 🚀 上传到微信 (${generatedImages.length})
             </button>
         </div>
@@ -2018,7 +2026,7 @@ function displayXiaoLvShuDirectResult(data) {
             <button class="btn btn-outline" onclick="downloadAllXiaoLvShu()">
                 💾 下载全部
             </button>
-            <button class="btn btn-primary" onclick="uploadXiaoLvShuToWechat()">
+            <button class="btn btn-primary" onclick="uploadXiaoLvShuToWechat(event)">
                 🚀 上传微信
             </button>
         </div>
