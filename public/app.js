@@ -292,13 +292,21 @@ class PoemApp {
         } else if (modeName === 'baokuan') {
             document.getElementById('generateTitle').textContent = '生成诗词相关爆款文';
             document.getElementById('generateDescription').textContent = '输入爆款文章链接，AI将生成诗词文化相关的爆款内容';
+        } else if (modeName === 'xiaolvshu') {
+            document.getElementById('generateTitle').textContent = '生成小绿书图片';
+            document.getElementById('generateDescription').textContent = '输入任意文本内容，AI将智能分段并生成精美图片';
         }
         
         // 清空当前文章和输出
         this.currentArticle = null;
         this.hideOutput();
         
-        this.showToast('info', `已切换到${modeName === 'poetry' ? '诗词赏析' : '爆款文'}模式`);
+        const modeNames = {
+            'poetry': '诗词赏析',
+            'baokuan': '爆款文',
+            'xiaolvshu': '小绿书'
+        };
+        this.showToast('info', `已切换到${modeNames[modeName] || modeName}模式`);
     }
 
     hideOutput() {
@@ -1683,6 +1691,127 @@ async function uploadXiaoLvShuToWechat() {
     
     app.showToast('info', '小绿书微信上传功能开发中...');
     // TODO: 实现上传到微信图片&文字草稿的功能
+}
+
+// 独立的小绿书生成函数（直接从表单输入）
+async function generateXiaoLvShuDirect() {
+    const title = document.getElementById('xiaolvshuTitle').value.trim() || '内容图片';
+    const author = document.getElementById('xiaolvshuAuthor').value.trim() || '';
+    const content = document.getElementById('xiaolvshuContent').value.trim();
+    const template = document.getElementById('xiaolvshuTemplate').value;
+    
+    if (!content) {
+        app.showToast('error', '请输入要转换的文本内容');
+        return;
+    }
+    
+    const generateBtn = document.getElementById('generateXiaoLvShuBtn');
+    const originalText = generateBtn.textContent;
+    
+    try {
+        // 显示加载状态
+        generateBtn.disabled = true;
+        generateBtn.textContent = '📸 生成中...';
+        
+        // 显示加载状态到输出区域
+        document.getElementById('loading').style.display = 'flex';
+        document.getElementById('loading').querySelector('p').textContent = 'AI正在智能分段并生成图片，请稍候...';
+        document.getElementById('output').style.display = 'none';
+        document.getElementById('outputPlaceholder').style.display = 'none';
+        
+        console.log('📸 开始生成小绿书图片...');
+        
+        const response = await fetch('/api/xiaolvshu/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                content: content,
+                title: title,
+                author: author,
+                template: template
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // 显示生成结果
+            displayXiaoLvShuDirectResult(data);
+            app.showToast('success', `小绿书生成成功！共 ${data.totalPages} 张图片`);
+        } else {
+            app.showToast('error', '生成失败: ' + data.error);
+        }
+        
+    } catch (error) {
+        console.error('小绿书生成失败:', error);
+        app.showToast('error', '生成失败: ' + error.message);
+    } finally {
+        // 恢复按钮状态
+        generateBtn.disabled = false;
+        generateBtn.textContent = originalText;
+        document.getElementById('loading').style.display = 'none';
+    }
+}
+
+// 显示独立小绿书生成结果
+function displayXiaoLvShuDirectResult(data) {
+    const outputElement = document.getElementById('output');
+    const placeholderElement = document.getElementById('outputPlaceholder');
+    const actionsElement = document.getElementById('outputActions');
+    
+    let html = `
+        <div class="xiaolvshu-result-info">
+            <h4>📸 小绿书生成完成</h4>
+            <p>共生成 ${data.totalPages} 张图片，使用模板：${data.template}</p>
+        </div>
+        
+        <div class="xiaolvshu-images-grid">
+    `;
+    
+    // 显示每张图片
+    data.images.forEach((image, index) => {
+        html += `
+            <div class="xiaolvshu-image-card">
+                <div class="xiaolvshu-page-number">第 ${image.pageNumber} 页</div>
+                <img src="${image.dataUrl}" alt="第${image.pageNumber}页" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+                <div class="xiaolvshu-image-actions">
+                    <button class="btn btn-sm btn-outline" onclick="downloadXiaoLvShuImage(${index})">
+                        💾 下载
+                    </button>
+                    <button class="btn btn-sm btn-outline" onclick="previewXiaoLvShuImage(${index})">
+                        👁️ 预览
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    // 批量操作按钮
+    html += `
+        <div class="xiaolvshu-batch-actions">
+            <button class="btn btn-outline" onclick="downloadAllXiaoLvShu()">
+                💾 下载全部
+            </button>
+            <button class="btn btn-primary" onclick="uploadXiaoLvShuToWechat()">
+                🚀 上传微信
+            </button>
+        </div>
+    `;
+    
+    outputElement.innerHTML = html;
+    outputElement.style.display = 'block';
+    placeholderElement.style.display = 'none';
+    actionsElement.style.display = 'none'; // 小绿书模式不需要这些按钮
+    
+    // 存储图片数据供后续使用
+    app.currentXiaoLvShuImages = data.images;
+    
+    // 滚动到结果区域
+    outputElement.scrollIntoView({ behavior: 'smooth' });
 }
 
 // 补充缺失的方法
