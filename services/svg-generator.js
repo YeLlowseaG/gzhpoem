@@ -15,11 +15,11 @@ class SVGGenerator {
                 primaryColor: '#8b4513',
                 secondaryColor: '#cd853f',
                 textColor: '#2c2c2c',
-                titleSize: 32,
-                contentSize: 24,
+                titleSize: 28,
+                contentSize: 20,
                 lineHeight: 1.8,
-                padding: 40,
-                maxCharsPerPage: 400,
+                padding: 60,
+                maxCharsPerPage: 450,
                 fontFamily: 'serif'
             },
             modern: {
@@ -30,11 +30,11 @@ class SVGGenerator {
                 primaryColor: '#667eea',
                 secondaryColor: '#f093fb',
                 textColor: '#333333',
-                titleSize: 36,
-                contentSize: 26,
-                lineHeight: 1.6,
+                titleSize: 30,
+                contentSize: 22,
+                lineHeight: 1.7,
                 padding: 50,
-                maxCharsPerPage: 350,
+                maxCharsPerPage: 400,
                 fontFamily: 'sans-serif'
             },
             elegant: {
@@ -45,11 +45,11 @@ class SVGGenerator {
                 primaryColor: '#8b4513',
                 secondaryColor: '#d4af37',
                 textColor: '#444444',
-                titleSize: 30,
-                contentSize: 22,
-                lineHeight: 1.9,
-                padding: 45,
-                maxCharsPerPage: 380,
+                titleSize: 26,
+                contentSize: 18,
+                lineHeight: 2.0,
+                padding: 55,
+                maxCharsPerPage: 500,
                 fontFamily: 'serif'
             }
         };
@@ -318,16 +318,25 @@ class SVGGenerator {
     }
 
     /**
-     * 文本换行处理
+     * 文本换行处理 - 智能换行算法
      */
     wrapText(text, fontSize, maxWidth) {
         const lines = [];
         const paragraphs = text.split('\n');
         
-        // 估算字符宽度（中文字符较宽）
-        const charWidth = fontSize * 0.6;
-        const maxCharsPerLine = Math.floor(maxWidth / charWidth);
-
+        // 更精确的字符宽度估算 - 考虑SVG渲染的实际宽度
+        const chineseCharWidth = fontSize * 0.9;  // 中文字符宽度（稍微调小）
+        const englishCharWidth = fontSize * 0.45; // 英文字符宽度
+        const punctuationWidth = fontSize * 0.4;  // 标点符号宽度（更窄）
+        
+        // 预留一些边距，避免文字贴边
+        const actualMaxWidth = maxWidth - 20;
+        
+        // 不能在行首的标点符号
+        const endPunctuations = ['。', '，', '！', '？', '；', '：', '）', '】', '』', '》', '」', '"', '"', '、', ')', ']', '}'];
+        // 不能在行尾的标点符号  
+        const startPunctuations = ['（', '【', '『', '《', '「', '"', '"', '(', '[', '{'];
+        
         for (const paragraph of paragraphs) {
             if (!paragraph.trim()) {
                 lines.push(''); // 空行
@@ -336,16 +345,55 @@ class SVGGenerator {
 
             const chars = paragraph.split('');
             let currentLine = '';
+            let currentWidth = 0;
 
-            for (const char of chars) {
-                if (currentLine.length >= maxCharsPerLine) {
-                    lines.push(currentLine);
-                    currentLine = char;
+            for (let i = 0; i < chars.length; i++) {
+                const char = chars[i];
+                const nextChar = i < chars.length - 1 ? chars[i + 1] : null;
+                let charWidth;
+                
+                // 计算字符宽度
+                if (/[\u4e00-\u9fa5]/.test(char)) {
+                    // 中文字符
+                    charWidth = chineseCharWidth;
+                } else if (/[a-zA-Z0-9]/.test(char)) {
+                    // 英文字符和数字
+                    charWidth = englishCharWidth;
                 } else {
+                    // 标点符号等
+                    charWidth = punctuationWidth;
+                }
+                
+                // 检查是否需要换行
+                if (currentWidth + charWidth > actualMaxWidth && currentLine.length > 0) {
+                    // 检查标点符号换行规则
+                    if (endPunctuations.includes(char)) {
+                        // 结尾标点符号不能换到下一行，继续添加到当前行
+                        currentLine += char;
+                        currentWidth += charWidth;
+                    } else if (nextChar && endPunctuations.includes(nextChar)) {
+                        // 如果下一个字符是结尾标点，当前字符也不换行
+                        currentLine += char;
+                        currentWidth += charWidth;
+                    } else if (startPunctuations.includes(char)) {
+                        // 开头标点符号不能单独在行尾
+                        lines.push(currentLine);
+                        currentLine = char;
+                        currentWidth = charWidth;
+                    } else {
+                        // 可以换行，保存当前行，开始新行
+                        lines.push(currentLine);
+                        currentLine = char;
+                        currentWidth = charWidth;
+                    }
+                } else {
+                    // 不需要换行，继续添加
                     currentLine += char;
+                    currentWidth += charWidth;
                 }
             }
 
+            // 添加最后一行
             if (currentLine.length > 0) {
                 lines.push(currentLine);
             }
