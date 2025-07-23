@@ -519,12 +519,17 @@ ${content}
         const lines = [];
         const paragraphs = text.split('\n');
         
-        // 非常保守的字符估算，确保绝对不会超出
-        const avgCharWidth = fontSize * 0.6;  // 平均字符宽度，更保守
-        const safeMaxWidth = maxWidth - 80;   // 预留更多边距
-        const maxCharsPerLine = Math.floor(safeMaxWidth / avgCharWidth);
+        // 暴力解决：直接固定每行字符数，不再瞎猜字符宽度
+        let maxCharsPerLine;
+        if (fontSize >= 24) {
+            maxCharsPerLine = 20; // 大字体
+        } else if (fontSize >= 20) {
+            maxCharsPerLine = 25; // 中字体  
+        } else {
+            maxCharsPerLine = 30; // 小字体
+        }
         
-        console.log(`换行调试: fontSize=${fontSize}, maxWidth=${maxWidth}, safeMaxWidth=${safeMaxWidth}, maxCharsPerLine=${maxCharsPerLine}`);
+        console.log(`暴力换行: fontSize=${fontSize}, 固定每行${maxCharsPerLine}字符`);
         
         // 不能在行首的标点符号
         const endPunctuations = ['。', '，', '！', '？', '；', '：', '）', '】', '』', '》', '」', '"', '"', '、', ')', ']', '}'];
@@ -543,8 +548,8 @@ ${content}
                 const char = chars[i];
                 const nextChar = i < chars.length - 1 ? chars[i + 1] : null;
                 
-                // 检查是否需要换行
-                if (currentLine.length >= maxCharsPerLine && currentLine.length > 0) {
+                // 检查是否需要换行 - 暴力简单版本
+                if (currentLine.length >= maxCharsPerLine) {
                     // 检查标点符号换行规则
                     if (endPunctuations.includes(char)) {
                         // 结尾标点符号不能换到下一行

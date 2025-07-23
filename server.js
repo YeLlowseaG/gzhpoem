@@ -851,9 +851,9 @@ app.post('/api/wechat/upload', async (req, res) => {
 // ==================== 小绿书图片生成接口 ====================
 
 // 生成小绿书图片 - 流式生成版本  
-app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
+app.post('/api/xiaolvshu/generate-stream', async (req, res) => {
     try {
-        const { content, title, author, template = 'classic', useAIGeneration = 'false' } = req.query;
+        const { content, title, author, template = 'classic', useAIGeneration = false } = req.body;
         
         if (!content) {
             return res.status(400).json({
@@ -894,7 +894,7 @@ app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
             let segments = await svgGenerator.intelligentSegmentation(content, template, aiService);
             
             // 限制分段数量，避免生成过多图片导致超时
-            const maxPages = useAIGeneration === 'true' ? 6 : 10; // AI模式最多6页，SVG模式最多10页
+            const maxPages = useAIGeneration ? 6 : 10; // AI模式最多6页，SVG模式最多10页
             if (segments.length > maxPages) {
                 console.log(`⚠️ 分段过多(${segments.length}页)，限制为${maxPages}页`);
                 segments = segments.slice(0, maxPages);
@@ -912,7 +912,7 @@ app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
                 try {
                     let pageImage;
                     
-                    if (useAIGeneration === 'true' && aiService.isConfigured()) {
+                    if (useAIGeneration && aiService.isConfigured()) {
                         // 尝试AI图片生成
                         const imagePrompt = `${svgGenerator.templates[template].name}风格的文字卡片背景图，温暖色调，简洁美观，高质量，4k分辨率`;
                         
@@ -1039,7 +1039,7 @@ app.get('/api/xiaolvshu/generate-stream', async (req, res) => {
                     images: images,
                     totalPages: images.length,
                     template: svgGenerator.templates[template].name,
-                    generationMode: useAIGeneration === 'true' ? 'AI生成' : 'SVG生成'
+                    generationMode: useAIGeneration ? 'AI生成' : 'SVG生成'
                 }
             });
 

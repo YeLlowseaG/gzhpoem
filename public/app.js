@@ -1797,69 +1797,86 @@ async function generateXiaoLvShuDirect() {
         
         console.log('📸 开始生成小绿书图片...', useAIGeneration ? '(AI完全生成模式)' : '(SVG模板模式)');
         
-        // 使用EventSource进行流式接收
-        const eventSource = new EventSource('/api/xiaolvshu/generate-stream?' + new URLSearchParams({
-            content: content,
-            title: title,
-            author: author,
-            template: template,
-            useAIGeneration: useAIGeneration
-        }));
+        // 改用fetch实现手动流式接收（解决GET长度限制）
+        const response = await fetch('/api/xiaolvshu/generate-stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                content: content,
+                title: title,
+                author: author,
+                template: template,
+                useAIGeneration: useAIGeneration
+            })
+        });
+
+        if (!response.body) {
+            throw new Error('流式响应不支持');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
 
         const generatedImages = [];
         let totalPages = 0;
 
-        eventSource.onmessage = function(event) {
-            try {
-                const progressData = JSON.parse(event.data);
-                console.log('📡 收到进度:', progressData);
+        // 手动实现流式读取
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-                // 更新进度显示
-                const loadingElement = document.getElementById('loading');
-                const loadingText = loadingElement.querySelector('p');
-                loadingText.textContent = progressData.message;
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
 
-                // 处理不同的进度步骤
-                if (progressData.step === 2 && progressData.data?.totalPages) {
-                    totalPages = progressData.data.totalPages;
-                    loadingText.textContent = `${progressData.message} - 准备生成图片...`;
-                }
-                
-                // 单张图片完成
-                if (progressData.data?.image) {
-                    generatedImages.push(progressData.data.image);
-                    loadingText.textContent = `${progressData.message} (${progressData.data.completed}/${progressData.data.total})`;
-                    
-                    // 实时显示已生成的图片
-                    displayPartialXiaoLvShuResult(generatedImages, progressData.data.total);
-                }
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const progressData = JSON.parse(line.substring(6));
+                            console.log('📡 收到进度:', progressData);
 
-                // 全部完成
-                if (progressData.step === 999) {
-                    eventSource.close();
-                    
-                    if (progressData.data?.finalResult) {
-                        const finalData = progressData.data.finalResult;
-                        displayXiaoLvShuDirectResult(finalData);
-                        app.showToast('success', `🎉 小绿书生成完成！共 ${finalData.totalPages} 张图片`);
-                    } else if (progressData.data?.error) {
-                        app.showToast('error', '生成失败: ' + progressData.data.error);
+                            // 更新进度显示
+                            const loadingElement = document.getElementById('loading');
+                            const loadingText = loadingElement.querySelector('p');
+                            loadingText.textContent = progressData.message;
+
+                            // 处理不同的进度步骤
+                            if (progressData.step === 2 && progressData.data?.totalPages) {
+                                totalPages = progressData.data.totalPages;
+                                loadingText.textContent = `${progressData.message} - 准备生成图片...`;
+                            }
+                            
+                            // 单张图片完成
+                            if (progressData.data?.image) {
+                                generatedImages.push(progressData.data.image);
+                                loadingText.textContent = `${progressData.message} (${progressData.data.completed}/${progressData.data.total})`;
+                                
+                                // 实时显示已生成的图片
+                                displayPartialXiaoLvShuResult(generatedImages, progressData.data.total);
+                            }
+
+                            // 全部完成
+                            if (progressData.step === 999) {
+                                if (progressData.data?.finalResult) {
+                                    const finalData = progressData.data.finalResult;
+                                    displayXiaoLvShuDirectResult(finalData);
+                                    app.showToast('success', `🎉 小绿书生成完成！共 ${finalData.totalPages} 张图片`);
+                                } else if (progressData.data?.error) {
+                                    app.showToast('error', '生成失败: ' + progressData.data.error);
+                                }
+                                break;
+                            }
+
+                        } catch (parseError) {
+                            console.error('解析进度数据失败:', parseError);
+                        }
                     }
-                    
-                    // 恢复按钮状态
-                    generateBtn.disabled = false;
-                    generateBtn.textContent = originalText;
-                    document.getElementById('loading').style.display = 'none';
                 }
-
-            } catch (error) {
-                console.error('解析进度数据失败:', error);
             }
-        };
-
-        eventSource.onerror = function(event) {
-            console.error('EventSource失败:', event);
-            eventSource.close();
+        } catch (streamError) {
+            console.error('流式读取失败:', streamError);
             
             // 如果已经有图片生成成功，显示部分结果
             if (generatedImages.length > 0) {
@@ -1872,16 +1889,15 @@ async function generateXiaoLvShuDirect() {
                     partial: true
                 });
             } else {
-                app.showToast('error', '连接中断，请重试或使用非AI模式');
+                app.showToast('error', '生成失败，请重试');
             }
-            
+        } finally {
             // 恢复按钮状态
             generateBtn.disabled = false;
             generateBtn.textContent = originalText;
             document.getElementById('loading').style.display = 'none';
-        };
+        }
 
-        // 不需要等待，因为是流式处理
         return;
         
     } catch (error) {
