@@ -551,7 +551,7 @@ app.post('/api/baokuan/generate', async (req, res) => {
         // 4. AI生成完整的诗词爆款文内容包（文章+标题+封面）
         let finalContent = '', titles = [], cover = null;
         if (aiService.isConfigured() && explosiveElements) {
-            const genPrompt = `请以“${topic}”为主题，结合以下关键词：${keywords.join('、')}，创作一篇与中国诗词文化相关的原创文章，要求内容新颖、有深度、有诗意，适合公众号爆款。`;
+            const genPrompt = `请严格仿写以下爆款文章的结构、套路和写作技巧，但内容要完全原创：\n\n爆款要素分析：\n${explosiveElements}\n\n仿写要求：\n1. 模仿原文的标题套路，但改为全新的话题\n2. 借鉴原文的开头方式，但用不同的内容\n3. 采用原文的情感触点，但应用到新的场景\n4. 使用原文的结构特点，但填入原创内容\n5. 复制原文的表达特色，但避免任何相似的具体内容\n6. 利用原文的引爆点，但创造全新的讨论点\n\n注意：这是仿写练习，要学习套路但内容必须100%原创，与原文完全不同。`;
             const aiGen = await aiService.generateWithAI({
                 author: '', title: topic, style: 'popular', keywords: keywords.join(','), content: genPrompt
             });
@@ -638,7 +638,7 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
                     title: topic, 
                     style: 'popular', 
                     keywords: keywords.join(','), 
-                    content: `请借鉴以下爆款要素创作一篇诗词文化爆款文：\n\n${explosiveElements}\n\n要求：结合诗词文化，内容新颖有深度，适合公众号传播。`
+                    content: `请严格仿写以下爆款文章的结构、套路和写作技巧，但内容要完全原创：\n\n爆款要素分析：\n${explosiveElements}\n\n仿写要求：\n1. 模仿原文的标题套路，但改为全新的话题\n2. 借鉴原文的开头方式，但用不同的内容\n3. 采用原文的情感触点，但应用到新的场景\n4. 使用原文的结构特点，但填入原创内容\n5. 复制原文的表达特色，但避免任何相似的具体内容\n6. 利用原文的引爆点，但创造全新的讨论点\n\n注意：这是仿写练习，要学习套路但内容必须100%原创，与原文完全不同。`
                 }),
                 
                 // 生成爆款标题

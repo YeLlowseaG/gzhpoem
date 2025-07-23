@@ -290,8 +290,8 @@ class PoemApp {
             document.getElementById('generateTitle').textContent = '生成诗词赏析文章';
             document.getElementById('generateDescription').textContent = '输入诗词信息，AI将为您生成深度赏析文章';
         } else if (modeName === 'baokuan') {
-            document.getElementById('generateTitle').textContent = '生成诗词相关爆款文';
-            document.getElementById('generateDescription').textContent = '输入爆款文章链接，AI将生成诗词文化相关的爆款内容';
+            document.getElementById('generateTitle').textContent = '仿写爆款文';
+            document.getElementById('generateDescription').textContent = '输入爆款文章链接或内容，AI将分析其爆款套路并仿写全新文章';
         } else if (modeName === 'xiaolvshu') {
             document.getElementById('generateTitle').textContent = '生成小绿书图片';
             document.getElementById('generateDescription').textContent = '输入任意文本内容，AI将智能分段并生成精美图片';
@@ -458,7 +458,7 @@ class PoemApp {
         }
         
         if (result.content) {
-            html += '<div class="article-content"><h4>📝 诗词相关爆款文：</h4>' + this.renderMarkdown(result.content) + '</div>';
+            html += '<div class="article-content"><h4>📝 仿写的爆款文：</h4>' + this.renderMarkdown(result.content) + '</div>';
         }
         
         outputElement.innerHTML = html;
