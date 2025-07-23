@@ -367,7 +367,7 @@ class PoemApp {
         this.showBaokuanLoading();
         
         try {
-            const response = await fetch('/api/baokuan/generate', {
+            const response = await fetch('/api/baokuan/generate-complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -403,6 +403,32 @@ class PoemApp {
         
         let html = '';
         
+        // 显示生成的标题选项（如果有多个）
+        if (result.titles && result.titles.length > 0) {
+            html += '<div class="generated-titles"><h4>🎯 生成的爆款标题：</h4>';
+            result.titles.forEach((title, index) => {
+                const isSelected = index === 0;
+                html += `
+                    <div class="title-option ${isSelected ? 'selected' : ''}" 
+                         onclick="app.selectTitle('${title.replace(/'/g, "\\'")}', this)">
+                        ${title}
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        
+        // 显示封面预览（如果有）
+        if (result.cover && result.cover.success) {
+            html += '<div class="cover-preview"><h4>🎨 生成的封面：</h4>';
+            if (result.cover.html) {
+                html += `<div class="cover-preview-container">${result.cover.html}</div>`;
+            } else if (result.cover.imageUrl) {
+                html += `<div class="cover-preview-container"><img src="${result.cover.imageUrl}" alt="封面图" style="max-width: 200px; border-radius: 8px;"></div>`;
+            }
+            html += '</div>';
+        }
+        
         if (result.originTitle) {
             html += `<div class="baokuan-metadata"><strong>原文标题：</strong>${result.originTitle}</div>`;
         }
@@ -419,6 +445,10 @@ class PoemApp {
             html += `<div class="baokuan-metadata"><strong>关键词：</strong>${result.keywords.join('、')}</div>`;
         }
         
+        if (result.explosiveElements) {
+            html += `<div class="baokuan-metadata"><strong>爆款要素分析：</strong><br><pre style="white-space: pre-wrap; font-size: 0.8em; line-height: 1.4;">${result.explosiveElements}</pre></div>`;
+        }
+        
         if (result.content) {
             html += '<div class="article-content"><h4>📝 诗词相关爆款文：</h4>' + this.renderMarkdown(result.content) + '</div>';
         }
@@ -431,8 +461,8 @@ class PoemApp {
         // 添加文章元数据
         this.addBaokuanMetadata(result);
         
-        // 保存当前选择的标题（使用爆款选题）
-        this.selectedTitle = result.topic || null;
+        // 保存当前选择的标题（使用第一个生成的标题或爆款选题）
+        this.selectedTitle = (result.titles && result.titles.length > 0) ? result.titles[0] : result.topic || null;
     }
 
     addBaokuanMetadata(articleData) {

@@ -499,7 +499,7 @@ async function fallbackOCR(imageBase64) {
 
 // ==================== 爆款文相关接口 ====================
 
-// 生成爆款文（新版逻辑）
+// 生成爆款文（完整版逻辑 - 包含标题和封面）
 app.post('/api/baokuan/generate', async (req, res) => {
     const { url, manualContent, customPrompts } = req.body;
     if (!url && !manualContent) {
@@ -548,8 +548,8 @@ app.post('/api/baokuan/generate', async (req, res) => {
                 keywords = explosiveElements.split('\n').filter(line => line.includes('：')).map(line => line.split('：')[1]?.trim()).filter(Boolean);
             }
         }
-        // 4. AI生成诗词相关爆款文
-        let finalContent = '';
+        // 4. AI生成完整的诗词爆款文内容包（文章+标题+封面）
+        let finalContent = '', titles = [], cover = null;
         if (aiService.isConfigured() && explosiveElements) {
             const genPrompt = `请以“${topic}”为主题，结合以下关键词：${keywords.join('、')}，创作一篇与中国诗词文化相关的原创文章，要求内容新颖、有深度、有诗意，适合公众号爆款。`;
             const aiGen = await aiService.generateWithAI({
@@ -565,10 +565,128 @@ app.post('/api/baokuan/generate', async (req, res) => {
             keywords,
             content: finalContent,
             titles: titles || [],
-            cover: cover,
+            cover: cover || null,
             explosiveElements: explosiveElements // 返回分析的爆款要素，供前端显示
         });
     } catch (error) {
+        res.json({ success: false, error: '爆款文生成失败: ' + error.message });
+    }
+});
+
+// 生成爆款文完整版（带标题和封面）
+app.post('/api/baokuan/generate-complete', async (req, res) => {
+    const { url, manualContent, customPrompts } = req.body;
+    if (!url && !manualContent) {
+        return res.json({ success: false, error: '缺少爆款文章链接或正文内容' });
+    }
+    
+    try {
+        console.log('🎯 开始生成爆款文完整内容包...');
+        
+        // 1. 优先用手动正文
+        let originContent = manualContent ? manualContent.trim() : '';
+        let originTitle = '', originSummary = '';
+        if (originContent) {
+            originTitle = url ? url : '手动输入';
+            originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
+        } else {
+            // 2. 抓取网页内容
+            const response = await axios.get(url, { timeout: 10000 });
+            const html = response.data;
+            const $ = cheerio.load(html);
+            originTitle = $('title').text() || '';
+            if ($('article').length) {
+                originContent = $('article').text();
+            } else if ($('.rich_media_content').length) {
+                originContent = $('.rich_media_content').text();
+            } else if ($('body').length) {
+                originContent = $('body').text();
+            }
+            originContent = originContent.replace(/\s+/g, ' ').trim();
+            originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
+        }
+
+        // 3. AI分析爆款要素和写作技巧
+        let topic = '', keywords = [], explosiveElements = '';
+        if (aiService.isConfigured()) {
+            const extractPrompt = customPrompts && customPrompts.extract ? 
+                customPrompts.extract.replace('{content}', originContent.slice(0, 2000)) :
+                `请深度分析以下爆款文章，提取其成功的爆点要素和写作技巧：\n\n文章内容：${originContent.slice(0, 2000)}\n\n请从以下维度进行分析：\n1. 爆款标题技巧（为什么这个标题吸引人？用了什么套路？）\n2. 开头抓人技巧（如何在前3句话抓住读者？）\n3. 情感触点分析（触动了读者什么情感？恐惧/焦虑/好奇/共鸣？）\n4. 内容结构特点（用了什么逻辑结构？对比/反转/递进？）\n5. 表达方式特色（语言风格、修辞手法、互动元素）\n6. 传播引爆点（什么地方最容易被转发/讨论？）\n\n输出格式：\n标题技巧：xxx\n开头套路：xxx\n情感触点：xxx\n结构特点：xxx\n表达特色：xxx\n引爆点：xxx`;
+            
+            const aiExtract = await aiService.generateWithAI({
+                author: '', title: '', style: '', keywords: '', content: extractPrompt
+            });
+            
+            if (aiExtract && aiExtract.content) {
+                explosiveElements = aiExtract.content;
+                // 从分析结果中提取核心信息作为topic和keywords
+                const titleMatch = aiExtract.content.match(/标题技巧[:：]\s*(.+)/);
+                const emotionMatch = aiExtract.content.match(/情感触点[:：]\s*(.+)/);
+                topic = titleMatch ? `借鉴爆款技巧的诗词文章` : '诗词爆款文';
+                keywords = explosiveElements.split('\n').filter(line => line.includes('：')).map(line => line.split('：')[1]?.trim()).filter(Boolean);
+            }
+        }
+
+        // 4. AI生成完整的诗词爆款文内容包（文章+标题+封面）
+        let finalContent = '', titles = [], cover = null;
+        if (aiService.isConfigured() && explosiveElements) {
+            // 并行生成文章、标题、封面
+            const [articleResult, titleResult, coverResult] = await Promise.allSettled([
+                // 生成文章内容
+                aiService.generateWithAI({
+                    author: '', 
+                    title: topic, 
+                    style: 'popular', 
+                    keywords: keywords.join(','), 
+                    content: `请借鉴以下爆款要素创作一篇诗词文化爆款文：\n\n${explosiveElements}\n\n要求：结合诗词文化，内容新颖有深度，适合公众号传播。`
+                }),
+                
+                // 生成爆款标题
+                aiService.titleGenerator.generateMultipleTitles('诗词', topic, 'popular', 3),
+                
+                // 生成封面图
+                aiService.generateCoverImage({ 
+                    author: '诗词', 
+                    title: topic, 
+                    content: keywords.join('，'), 
+                    style: 'popular' 
+                })
+            ]);
+            
+            // 处理结果
+            if (articleResult.status === 'fulfilled' && articleResult.value?.content) {
+                finalContent = articleResult.value.content;
+                console.log('✅ 爆款文内容生成成功');
+            }
+            
+            if (titleResult.status === 'fulfilled' && titleResult.value) {
+                titles = titleResult.value;
+                console.log('✅ 爆款文标题生成成功, 共', titles.length, '个');
+            }
+            
+            if (coverResult.status === 'fulfilled' && coverResult.value?.success) {
+                cover = coverResult.value;
+                console.log('✅ 爆款文封面生成成功');
+            } else {
+                console.log('⚠️ 爆款文封面生成失败，使用默认封面');
+                cover = aiService.getBackupCover('诗词', topic);
+            }
+        }
+        
+        res.json({
+            success: true,
+            originTitle,
+            originSummary,
+            topic,
+            keywords,
+            content: finalContent,
+            titles: titles,
+            cover: cover,
+            explosiveElements: explosiveElements // 返回分析的爆款要素，供前端显示
+        });
+
+    } catch (error) {
+        console.error('❌ 生成爆款文完整内容包失败:', error);
         res.json({ success: false, error: '爆款文生成失败: ' + error.message });
     }
 });
