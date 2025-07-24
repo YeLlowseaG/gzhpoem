@@ -2092,12 +2092,15 @@ class FrontendCanvasGenerator {
         canvas.width = config.width;
         canvas.height = config.height;
         
+        // 清理内容，移除markdown语法
+        const cleanContent = this.cleanMarkdownContent(content);
+        
         // 绘制背景
         ctx.fillStyle = config.background;
         ctx.fillRect(0, 0, config.width, config.height);
         
         // 智能字体大小计算
-        const intelligentFontSize = this.calculateIntelligentFontSize(content, config);
+        const intelligentFontSize = this.calculateIntelligentFontSize(cleanContent, config);
         
         // 绘制文字
         ctx.fillStyle = config.textColor;
@@ -2107,7 +2110,7 @@ class FrontendCanvasGenerator {
         
         // 文字换行
         const maxWidth = config.width - config.padding * 2;
-        const lines = this.wrapText(ctx, content, maxWidth);
+        const lines = this.wrapText(ctx, cleanContent, maxWidth);
         
         // 计算文字总高度并垂直居中
         const totalTextHeight = lines.length * intelligentFontSize * 1.6; // 使用行高1.6
@@ -2132,6 +2135,20 @@ class FrontendCanvasGenerator {
         }
         
         return canvas.toDataURL('image/png');
+    }
+    
+    // 清理markdown内容
+    cleanMarkdownContent(content) {
+        return content
+            .replace(/#{1,6}\s/g, '') // 移除标题符号
+            .replace(/\*\*(.*?)\*\*/g, '$1') // 移除粗体
+            .replace(/\*(.*?)\*/g, '$1') // 移除斜体
+            .replace(/!\[.*?\]\(.*?\)/g, '') // 移除图片语法
+            .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
+            .replace(/`(.*?)`/g, '$1') // 移除代码
+            .replace(/---+/g, '') // 移除分隔线
+            .replace(/\n\s*\n/g, '\n') // 移除多余的空行
+            .trim();
     }
     
     // 智能字体大小计算
