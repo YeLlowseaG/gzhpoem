@@ -1751,9 +1751,9 @@ async function uploadXiaoLvShuToWechat(event) {
 }
 
 /**
- * 实时显示小绿书生成进度
+ * 显示进度容器（避免图片插入页面导致布局拉伸）
  */
-function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
+function displayProgressContainer(totalPages) {
     const outputElement = document.getElementById('output');
     const outputPlaceholder = document.getElementById('outputPlaceholder');
     const outputActions = document.getElementById('outputActions');
@@ -1761,77 +1761,75 @@ function displayPartialXiaoLvShuResult(generatedImages, totalPages) {
     // 显示输出区域
     outputElement.style.display = 'block';
     outputPlaceholder.style.display = 'none';
-    outputActions.style.display = 'flex';
+    outputActions.style.display = 'none';
     
-    // 创建实时进度显示
+    // 创建进度容器（固定高度，避免布局跳动）
     outputElement.innerHTML = `
-        <div class="xiaolvshu-result-info">
-            <h4>📸 小绿书生成进度</h4>
-            <p>已完成 ${generatedImages.length}/${totalPages} 张图片</p>
-        </div>
-        
-        <div class="xiaolvshu-images-grid">
-            ${Array.from({length: totalPages}, (_, i) => {
-                const pageNum = i + 1;
-                const image = generatedImages.find(img => img.pageNumber === pageNum);
-                
-                if (image) {
-                    // 已生成的图片
-                    return `
-                        <div class="xiaolvshu-image-card">
-                            <div class="xiaolvshu-page-number">${pageNum}/${totalPages}</div>
-                            <div class="xiaolvshu-image-content">
-                                ${image.aiGenerated ? 
-                                    `<img src="${image.imageUrl}" alt="第${pageNum}页" style="width: 100%; height: auto; border-radius: 8px;">` :
-                                image.frontendCanvas ? 
-                                    `<div class="canvas-placeholder" data-index="${i}" style="width: 100%; height: 300px; background: #f5f5f5; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666;">前端生成中...</div>` :
-                                    `<div style="width: 100%; height: 300px; background: url('data:image/svg+xml;base64,${image.base64}') center/contain no-repeat; border-radius: 8px;"></div>`
-                                }
-                            </div>
-                            <div class="xiaolvshu-image-actions">
-                                <button class="btn btn-sm btn-outline" onclick="downloadSingleXiaoLvShu(${i})">
-                                    💾 下载
-                                </button>
-                                <button class="btn btn-sm btn-outline" onclick="previewXiaoLvShuImage(${i})">
-                                    👁️ 预览
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // 未生成的占位符
-                    return `
-                        <div class="xiaolvshu-image-card generating">
-                            <div class="xiaolvshu-page-number">${pageNum}/${totalPages}</div>
-                            <div class="xiaolvshu-image-placeholder">
-                                <div class="generating-spinner"></div>
-                                <p>生成中...</p>
-                            </div>
-                        </div>
-                    `;
-                }
-            }).join('')}
-        </div>
-        
-        <div class="xiaolvshu-batch-actions">
-            <button class="btn btn-outline" onclick="downloadAllXiaoLvShu()" ${generatedImages.length === 0 ? 'disabled' : ''}>
-                💾 下载已完成 (${generatedImages.length})
-            </button>
-            <button class="btn btn-primary" onclick="uploadXiaoLvShuToWechat(event)" ${generatedImages.length === 0 ? 'disabled' : ''}>
-                🚀 上传到微信 (${generatedImages.length})
-            </button>
+        <div class="xiaolvshu-progress-container" style="min-height: 400px;">
+            <div class="xiaolvshu-result-info">
+                <h4>📸 小绿书生成进度</h4>
+                <div class="progress-bar-container" style="width: 100%; height: 8px; background: #f0f0f0; border-radius: 4px; margin: 10px 0;">
+                    <div id="progressBar" class="progress-bar" style="width: 0%; height: 100%; background: #4CAF50; border-radius: 4px; transition: width 0.3s ease;"></div>
+                </div>
+                <p id="progressText">准备生成 ${totalPages} 张图片...</p>
+            </div>
+            
+            <div id="progressImagesList" class="xiaolvshu-progress-list" style="max-height: 300px; overflow-y: auto;">
+                <!-- 生成进度列表 -->
+            </div>
         </div>
     `;
+}
+
+/**
+ * 更新进度显示
+ */
+function updateProgressDisplay(generatedImages, totalPages, message) {
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const imagesList = document.getElementById('progressImagesList');
     
-    // 触发前端Canvas生成
-    setTimeout(() => {
-        for (let i = 0; i < generatedImages.length; i++) {
-            const image = generatedImages[i];
-            if (image.frontendCanvas && !image.dataUrl) {
-                generateCanvasImage(image, i);
+    if (progressBar) {
+        const progress = (generatedImages.length / totalPages) * 100;
+        progressBar.style.width = `${progress}%`;
+    }
+    
+    if (progressText) {
+        progressText.textContent = `${message} (${generatedImages.length}/${totalPages})`;
+    }
+    
+    if (imagesList) {
+        // 只显示完成的图片列表，不显示实际图片（避免布局问题）
+        let listHtml = '';
+        
+        // 创建已完成的页码映射
+        const completedPages = new Set(generatedImages.map(img => img.pageNumber));
+        
+        for (let i = 1; i <= totalPages; i++) {
+            if (completedPages.has(i)) {
+                listHtml += `
+                    <div class="progress-item" style="padding: 8px; margin: 4px 0; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #4CAF50;">
+                        <span style="font-weight: bold;">第 ${i} 页</span>
+                        <span style="margin-left: 10px; color: #666; font-size: 14px;">✅ 生成完成</span>
+                    </div>
+                `;
+            } else {
+                listHtml += `
+                    <div class="progress-item" style="padding: 8px; margin: 4px 0; background: #f0f0f0; border-radius: 4px; border-left: 4px solid #ddd;">
+                        <span style="font-weight: bold;">第 ${i} 页</span>
+                        <span style="margin-left: 10px; color: #999; font-size: 14px;">⏳ 等待生成...</span>
+                    </div>
+                `;
             }
         }
-    }, 100);
+        
+        imagesList.innerHTML = listHtml;
+        
+        // 在进度更新时存储生成的图片数据
+        if (generatedImages.length > 0 && app) {
+            app.currentXiaoLvShuImages = generatedImages;
+        }
+    }
 }
 
 // 独立的小绿书生成函数（直接从表单输入）
@@ -1854,15 +1852,6 @@ async function generateXiaoLvShuDirect() {
         // 显示加载状态
         generateBtn.disabled = true;
         generateBtn.textContent = useAIGeneration ? '🤖 AI生成中...' : '📸 生成中...';
-        
-        // 显示加载状态到输出区域
-        document.getElementById('loading').style.display = 'flex';
-        const loadingText = useAIGeneration ? 
-            'AI正在智能分段排版并生成精美图片，请耐心等待...' : 
-            'AI正在智能分段并生成SVG图片，请稍候...';
-        document.getElementById('loading').querySelector('p').textContent = loadingText;
-        document.getElementById('output').style.display = 'none';
-        document.getElementById('outputPlaceholder').style.display = 'none';
         
         console.log('📸 开始生成小绿书图片...', useAIGeneration ? '(AI完全生成模式)' : '(SVG模板模式)');
         
@@ -1890,6 +1879,11 @@ async function generateXiaoLvShuDirect() {
 
         const generatedImages = [];
         let totalPages = 0;
+        let isFirstUpdate = true;
+        let buffer = '';
+        
+        // 隐藏loading，显示进度模式
+        document.getElementById('loading').style.display = 'none';
 
         // 手动实现流式读取
         try {
@@ -1897,8 +1891,9 @@ async function generateXiaoLvShuDirect() {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // 保留最后一个可能不完整的行
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
@@ -1906,24 +1901,19 @@ async function generateXiaoLvShuDirect() {
                             const progressData = JSON.parse(line.substring(6));
                             console.log('📡 收到进度:', progressData);
 
-                            // 更新进度显示
-                            const loadingElement = document.getElementById('loading');
-                            const loadingText = loadingElement.querySelector('p');
-                            loadingText.textContent = progressData.message;
-
                             // 处理不同的进度步骤
                             if (progressData.step === 2 && progressData.data?.totalPages) {
                                 totalPages = progressData.data.totalPages;
-                                loadingText.textContent = `${progressData.message} - 准备生成图片...`;
+                                // 显示进度容器
+                                displayProgressContainer(totalPages);
+                                isFirstUpdate = false;
                             }
                             
                             // 单张图片完成
                             if (progressData.data?.image) {
                                 generatedImages.push(progressData.data.image);
-                                loadingText.textContent = `${progressData.message} (${progressData.data.completed}/${progressData.data.total})`;
-                                
-                                // 实时显示已生成的图片
-                                displayPartialXiaoLvShuResult(generatedImages, progressData.data.total);
+                                // 更新进度显示（不插入实际图片）
+                                updateProgressDisplay(generatedImages, progressData.data.total, progressData.message);
                             }
 
                             // 全部完成
@@ -1964,7 +1954,7 @@ async function generateXiaoLvShuDirect() {
             // 恢复按钮状态
             generateBtn.disabled = false;
             generateBtn.textContent = originalText;
-            document.getElementById('loading').style.display = 'none';
+            // loading已经在开始时隐藏了
         }
 
         return;
@@ -1976,7 +1966,7 @@ async function generateXiaoLvShuDirect() {
         // 恢复按钮状态
         generateBtn.disabled = false;
         generateBtn.textContent = originalText;
-        document.getElementById('loading').style.display = 'none';
+        // loading已经在开始时隐藏了
     }
 }
 
@@ -2106,24 +2096,31 @@ class FrontendCanvasGenerator {
         ctx.fillStyle = config.background;
         ctx.fillRect(0, 0, config.width, config.height);
         
+        // 智能字体大小计算
+        const intelligentFontSize = this.calculateIntelligentFontSize(content, config);
+        
         // 绘制文字
         ctx.fillStyle = config.textColor;
-        ctx.font = `${config.fontSize}px ${config.fontFamily}`;
-        ctx.textAlign = 'left';
+        ctx.font = `${intelligentFontSize}px ${config.fontFamily}`;
+        ctx.textAlign = 'center'; // 改为居中对齐
         ctx.textBaseline = 'top';
         
         // 文字换行
         const maxWidth = config.width - config.padding * 2;
         const lines = this.wrapText(ctx, content, maxWidth);
         
-        let y = config.padding;
+        // 计算文字总高度并垂直居中
+        const totalTextHeight = lines.length * intelligentFontSize * 1.6; // 使用行高1.6
+        const startY = Math.max(config.padding, (config.height - totalTextHeight) / 2);
+        
+        let y = startY;
         for (const line of lines) {
-            if (y + config.lineHeight > config.height - config.padding) break;
+            if (y + intelligentFontSize * 1.6 > config.height - config.padding) break;
             
             if (line.trim()) {
-                ctx.fillText(line, config.padding, y);
+                ctx.fillText(line, config.width / 2, y); // 居中绘制
             }
-            y += config.lineHeight;
+            y += intelligentFontSize * 1.6;
         }
         
         // 绘制页码
@@ -2135,6 +2132,27 @@ class FrontendCanvasGenerator {
         }
         
         return canvas.toDataURL('image/png');
+    }
+    
+    // 智能字体大小计算
+    calculateIntelligentFontSize(content, config) {
+        const length = content.length;
+        let fontSize;
+        
+        if (length <= 100) {
+            fontSize = Math.max(28, config.fontSize + 6); // 短文本用大字体
+        } else if (length <= 300) {
+            fontSize = config.fontSize + 2; // 中等文本稍大
+        } else if (length <= 600) {
+            fontSize = config.fontSize; // 正常字体
+        } else if (length <= 1000) {
+            fontSize = Math.max(16, config.fontSize - 4); // 较长文本缩小
+        } else {
+            fontSize = Math.max(14, config.fontSize - 8); // 很长文本更小
+        }
+        
+        console.log(`📝 智能字体大小: 内容${length}字符 -> ${fontSize}px`);
+        return fontSize;
     }
     
     wrapText(ctx, text, maxWidth) {
