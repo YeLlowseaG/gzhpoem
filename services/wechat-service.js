@@ -249,14 +249,19 @@ class WechatService {
             console.log('📸 开始上传小绿书到草稿箱...');
             console.log(`📊 图片数量: ${xiaolvshuData.images.length}`);
             
-            // 1. 批量上传图片到微信素材库
+            // 1. 先上传第一张图片作为缩略图（封面）
+            const firstImage = xiaolvshuData.images[0];
+            console.log('📸 上传缩略图（封面）...');
+            const thumbMediaId = await this.uploadImageFromDataUrl(firstImage.dataUrl, token, true);
+            
+            // 2. 批量上传其余图片到微信素材库
             const uploadedImages = [];
             for (let i = 0; i < xiaolvshuData.images.length; i++) {
                 const image = xiaolvshuData.images[i];
                 console.log(`📸 上传第${i + 1}张图片...`);
                 
                 try {
-                    const mediaId = await this.uploadImageFromDataUrl(image.dataUrl, token);
+                    const mediaId = await this.uploadImageFromDataUrl(image.dataUrl, token, false);
                     uploadedImages.push({
                         mediaId: mediaId,
                         pageNumber: image.pageNumber,
@@ -273,11 +278,8 @@ class WechatService {
                 throw new Error('没有图片上传成功');
             }
             
-            // 2. 构建文章内容（图片+文字混排）
+            // 3. 构建文章内容（图片+文字混排）
             let wechatContent = this.buildXiaoLvShuContent(uploadedImages);
-            
-            // 3. 使用第一张图片作为封面
-            const thumbMediaId = uploadedImages[0].mediaId;
             
             // 4. 生成标题
             const title = xiaolvshuData.title || '图文分享';
@@ -335,7 +337,7 @@ class WechatService {
     /**
      * 从DataURL上传图片到微信素材库
      */
-    async uploadImageFromDataUrl(dataUrl, token) {
+    async uploadImageFromDataUrl(dataUrl, token, isThumb = false) {
         try {
             // 将DataURL转换为Buffer
             const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '');
@@ -344,29 +346,34 @@ class WechatService {
             // 创建FormData
             const formData = new FormData();
             formData.append('media', imageBuffer, {
-                filename: 'xiaolvshu.png',
+                filename: isThumb ? 'thumb.png' : 'xiaolvshu.png',
                 contentType: 'image/png'
             });
-            formData.append('type', 'image');
             
-            // 上传到微信
-            const response = await axios.post(
-                `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${token}&type=image`,
-                formData,
-                {
-                    headers: formData.getHeaders(),
-                    timeout: 30000
-                }
-            );
+            // 选择上传类型：缩略图或普通图片
+            const uploadType = isThumb ? 'thumb' : 'image';
+            const uploadUrl = `https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${token}&type=${uploadType}`;
+            
+            console.log(`📸 上传${isThumb ? '缩略图' : '图片'}到微信永久素材库...`);
+            
+            // 上传到微信永久素材库
+            const response = await axios.post(uploadUrl, formData, {
+                headers: formData.getHeaders(),
+                timeout: 30000
+            });
             
             if (response.data.errcode && response.data.errcode !== 0) {
-                throw new Error(`图片上传失败: ${response.data.errmsg}`);
+                throw new Error(`${isThumb ? '缩略图' : '图片'}上传失败: ${response.data.errmsg}`);
             }
             
-            return response.data.media_id;
+            // 永久素材返回的是 media_id
+            const mediaId = response.data.media_id;
+            console.log(`✅ ${isThumb ? '缩略图' : '图片'}上传成功: ${mediaId}`);
+            
+            return mediaId;
             
         } catch (error) {
-            console.error('上传图片失败:', error.message);
+            console.error(`上传${isThumb ? '缩略图' : '图片'}失败:`, error.message);
             throw error;
         }
     }
