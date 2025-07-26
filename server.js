@@ -960,71 +960,18 @@ app.post('/api/xiaolvshu/generate-stream', async (req, res) => {
                 try {
                     let pageImage;
                     
-                    if (useAIGeneration && aiService.isConfigured()) {
-                        // 尝试AI图片生成
-                        const imagePrompt = `${svgGenerator.templates[template].name}风格的文字卡片背景图，温暖色调，简洁美观，高质量，4k分辨率`;
-                        
-                        // 发送开始生成的心跳
-                        sendProgress(3 + i, `🎨 开始为第${pageNum}张生成AI图片，预计30秒...`);
-                        
-                        try {
-                            // 设置较短超时时间的AI图片生成
-                            const aiImageResult = await Promise.race([
-                                aiService.generateCoverImage({
-                                    author: author || '诗词',
-                                    title: `${title}-第${pageNum}页`,
-                                    content: segments[i],
-                                    style: template,
-                                    customPrompt: imagePrompt
-                                }),
-                                new Promise((_, reject) => 
-                                    setTimeout(() => reject(new Error('AI图片生成超时')), 15000)
-                                )
-                            ]);
-
-                            if (aiImageResult && aiImageResult.success) {
-                                pageImage = {
-                                    aiGenerated: true,
-                                    imageUrl: aiImageResult.imageUrl,
-                                    dataUrl: aiImageResult.imageUrl,
-                                    content: segments[i],
-                                    pageNumber: pageNum,
-                                    width: 750,
-                                    height: 1334
-                                };
-                                sendProgress(3 + i, `✅ 第${pageNum}张AI图片生成成功！`);
-                            } else {
-                                throw new Error('AI图片生成失败');
-                            }
-                        } catch (aiError) {
-                            console.warn(`AI图片生成失败: ${aiError.message}`);
-                            sendProgress(3 + i, `⚠️ 第${pageNum}张AI图片超时，降级到前端Canvas生成...`);
-                            // 直接返回数据给前端生成
-                            pageImage = {
-                                frontendCanvas: true,
-                                content: segments[i],
-                                pageNumber: pageNum,
-                                totalPages: segments.length,
-                                template: template,
-                                width: 750,
-                                height: 1334
-                            };
-                            sendProgress(3 + i, `✅ 第${pageNum}张数据已准备，前端生成中！`);
-                        }
-                    } else {
-                        // 非AI模式，直接返回数据给前端生成
-                        sendProgress(3 + i, `📝 第${pageNum}张准备前端Canvas生成...`);
-                        pageImage = {
-                            frontendCanvas: true,
-                            content: segments[i],
-                            pageNumber: pageNum,
-                            totalPages: segments.length,
-                            template: template,
-                            width: 750,
-                            height: 1334
-                        };
-                        sendProgress(3 + i, `✅ 第${pageNum}张数据已准备，前端生成中！`);
-                    }
+                    // 禁用AI图片生成，直接使用前端Canvas生成
+                    sendProgress(3 + i, `📝 第${pageNum}张准备前端Canvas生成（已禁用AI图片生成）...`);
+                    pageImage = {
+                        frontendCanvas: true,
+                        content: segments[i],
+                        pageNumber: pageNum,
+                        totalPages: segments.length,
+                        template: template,
+                        width: 750,
+                        height: 1334
+                    };
+                    sendProgress(3 + i, `✅ 第${pageNum}张数据已准备，前端生成中！`);
                     
                     // 必须有图片结果才继续
                     if (pageImage) {

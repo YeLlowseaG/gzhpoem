@@ -196,11 +196,12 @@ class AIService {
         try {
             console.log(`🎯 开始生成完整内容包: ${author} - ${title}`);
             
-            // 并行生成所有内容
+            // 并行生成所有内容（禁用AI图片生成）
             const [articleResult, titleResult, coverResult] = await Promise.allSettled([
                 this.generateArticleContent({ author, title, style, keywords, content, customPrompt }),
                 this.titleGenerator.generateMultipleTitles(author, title, style, 3),
-                this.generateCoverImage({ author, title, content, style })
+                // 禁用AI图片生成，使用默认封面
+                Promise.resolve({ success: true, useDefault: true })
             ]);
             
             // 处理封面结果
