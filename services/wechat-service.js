@@ -676,8 +676,67 @@ class WechatService {
      */
     async generateDefaultCoverBuffer() {
         try {
-            // 使用在线图片服务生成符合微信要求的封面
-            console.log('📸 生成符合微信要求的默认封面...');
+            console.log('📸 从固定图片库中选择封面...');
+            
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            // 定义固定图片库
+            const coverImages = [
+                'assets/cover-1.jpg',
+                'assets/cover-2.jpg', 
+                'assets/cover-3.jpg',
+                'assets/cover-4.jpg',
+                'assets/cover-5.jpg',
+                'assets/cover-6.jpg'
+            ];
+            
+            // 过滤出存在的图片文件
+            const existingImages = [];
+            for (const imagePath of coverImages) {
+                try {
+                    const fullPath = path.join(__dirname, '..', imagePath);
+                    await fs.access(fullPath);
+                    existingImages.push(fullPath);
+                    console.log(`✅ 找到图片: ${imagePath}`);
+                } catch (error) {
+                    console.log(`❌ 图片不存在: ${imagePath}`);
+                }
+            }
+            
+            if (existingImages.length === 0) {
+                console.warn('⚠️  没有找到任何固定图片，使用在线图片服务...');
+                return await this.generateOnlineCover();
+            }
+            
+            // 随机选择一张图片
+            const randomIndex = Math.floor(Math.random() * existingImages.length);
+            const selectedImage = existingImages[randomIndex];
+            
+            console.log(`🎲 随机选择封面: ${path.basename(selectedImage)}`);
+            
+            try {
+                const imageBuffer = await fs.readFile(selectedImage);
+                console.log(`✅ 读取固定封面成功: ${imageBuffer.length} bytes`);
+                return imageBuffer;
+            } catch (error) {
+                console.warn(`❌ 读取固定图片失败: ${error.message}`);
+                console.log('🔄 切换到在线图片服务...');
+                return await this.generateOnlineCover();
+            }
+            
+        } catch (error) {
+            console.error('生成默认封面失败:', error.message);
+            throw error;
+        }
+    }
+    
+    /**
+     * 生成在线封面图片（备用方案）
+     */
+    async generateOnlineCover() {
+        try {
+            console.log('📸 使用在线图片服务生成封面...');
             
             const axios = require('axios');
             
@@ -733,7 +792,7 @@ class WechatService {
             return minimalJpeg;
             
         } catch (error) {
-            console.error('生成默认封面失败:', error.message);
+            console.error('生成在线封面失败:', error.message);
             throw error;
         }
     }
