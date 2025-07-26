@@ -29,7 +29,7 @@ class AIService {
             }
         };
         
-        // 优先使用DeepSeek（更快更便宜），通义千问备用，OpenAI最后
+        // 优先使用通义千问，OpenAI备用，DeepSeek最后
         this.currentProvider = this.findAvailableProvider();
         
         // 初始化辅助服务
@@ -51,8 +51,8 @@ class AIService {
      * 寻找可用的AI服务
      */
     findAvailableProvider() {
-        // 优先级顺序：DeepSeek > 通义千问 > OpenAI
-        const priority = ['deepseek', 'qwen', 'openai'];
+        // 优先级顺序：通义千问 > OpenAI > DeepSeek
+        const priority = ['qwen', 'openai', 'deepseek'];
         
         for (const name of priority) {
             const provider = this.providers[name];
