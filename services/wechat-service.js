@@ -676,56 +676,42 @@ class WechatService {
      */
     async generateDefaultCoverBuffer() {
         try {
-            // 使用一个稳定的图片服务
-            const imageUrls = [
-                'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=600&h=400&fit=crop&fm=jpg&q=60',
-                'https://picsum.photos/600/400.jpg',
-                'https://dummyimage.com/600x400/f4f1e8/8b4513.jpg&text=Cover'
-            ];
+            const fs = require('fs').promises;
+            const path = require('path');
             
-            for (const imageUrl of imageUrls) {
-                try {
-                    console.log(`📸 尝试下载封面图片: ${imageUrl}`);
-                    const imageResponse = await axios.get(imageUrl, {
-                        responseType: 'arraybuffer',
-                        timeout: 8000,
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-                        }
-                    });
-                    
-                    const buffer = Buffer.from(imageResponse.data);
-                    if (buffer.length > 1000 && buffer.length < 1024 * 1024) { // 1KB-1MB
-                        console.log(`✅ 成功下载封面: ${buffer.length} bytes`);
-                        return buffer;
-                    }
-                } catch (error) {
-                    console.log(`❌ 下载失败: ${error.message}`);
-                    continue;
-                }
+            // 使用本地默认封面图片
+            const defaultCoverPath = path.join(__dirname, '../assets/default-cover.jpg');
+            
+            console.log(`📸 读取本地默认封面图片: ${defaultCoverPath}`);
+            
+            try {
+                const imageBuffer = await fs.readFile(defaultCoverPath);
+                console.log(`✅ 成功读取本地封面: ${imageBuffer.length} bytes`);
+                return imageBuffer;
+            } catch (error) {
+                console.warn(`❌ 本地封面文件不存在: ${error.message}`);
+                
+                // 备用方案：创建一个简单的默认封面
+                console.log('📸 生成简单默认封面...');
+                const simpleCover = Buffer.from([
+                    0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+                    0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xC0, 0x00, 0x11,
+                    0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x02, 0x11, 0x01,
+                    0x03, 0x11, 0x01, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x08, 0xFF, 0xC4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
+                    0xDA, 0x00, 0x0C, 0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00, 0x3F,
+                    0x00, 0x80, 0xFF, 0xD9
+                ]);
+                
+                console.log(`生成简单封面: ${simpleCover.length} bytes`);
+                return simpleCover;
             }
             
-            throw new Error('所有图片源都无法访问');
-            
         } catch (error) {
-            console.warn('下载在线图片失败，创建最基础图片:', error.message);
-            
-            // 最终备用方案：创建一个有效的JPEG文件
-            // 这是一个1x1像素的白色JPEG
-            const minimalValidJpeg = Buffer.from([
-                0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
-                0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xC0, 0x00, 0x11,
-                0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0x02, 0x11, 0x01,
-                0x03, 0x11, 0x01, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x08, 0xFF, 0xC4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
-                0xDA, 0x00, 0x0C, 0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00, 0x3F,
-                0x00, 0x80, 0xFF, 0xD9
-            ]);
-            
-            console.log(`生成备用封面: ${minimalValidJpeg.length} bytes`);
-            return minimalValidJpeg;
+            console.error('生成默认封面失败:', error.message);
+            throw error;
         }
     }
 }

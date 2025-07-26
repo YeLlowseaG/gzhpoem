@@ -646,13 +646,8 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
                 // 生成爆款标题
                 aiService.titleGenerator.generateMultipleTitles('诗词', topic, 'popular', 3),
                 
-                // 生成封面图
-                aiService.generateCoverImage({ 
-                    author: '诗词', 
-                    title: topic, 
-                    content: keywords.join('，'), 
-                    style: 'popular' 
-                })
+                // 生成封面图 - 使用默认封面，不调用AI图片生成
+                Promise.resolve({ success: true, imageUrl: null, useDefault: true })
             ]);
             
             // 处理结果
