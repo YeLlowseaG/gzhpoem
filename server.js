@@ -530,17 +530,6 @@ app.post('/api/baokuan/generate', async (req, res) => {
             originContent = originContent.replace(/\s+/g, ' ').trim();
             originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
         }
-        res.json({
-            success: true,
-            originTitle,
-            originSummary,
-            topic: originTitle || '仿写文章',
-            keywords: [],
-            content: '',
-            titles: [],
-            cover: null,
-            originalContent: originContent.slice(0, 500) + '...' // 返回原文摘要，供前端显示
-        });
     } catch (error) {
         res.json({ success: false, error: '爆款文生成失败: ' + error.message });
     }
@@ -636,7 +625,7 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
             originTitle,
             originSummary,
             topic,
-            keywords,
+            keywords: [],
             content: finalContent,
             titles: titles,
             cover: cover,
