@@ -398,15 +398,33 @@
                         <!-- 爆款文提示词 -->
                         <div id="baokuanPrompt" class="prompt-tab-content">
                             <div class="form-group">
-                                <label for="baokuanExtractTemplate">选题提炼提示词</label>
-                                <textarea id="baokuanExtractTemplate" rows="6" placeholder="从原文中提炼爆款选题的提示词..."></textarea>
-                                <small>用于从原文中提炼爆款选题和关键词</small>
+                                <label for="baokuanExtractTitleTemplate">标题提取提示词</label>
+                                <textarea id="baokuanExtractTitleTemplate" rows="4" placeholder="从原文中提取标题的提示词..."></textarea>
+                                <small>用于从原文中提取或生成标题，使用变量: {content}</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="baokuanExtractTopicTemplate">选题提取提示词</label>
+                                <textarea id="baokuanExtractTopicTemplate" rows="4" placeholder="从原文中提取爆款选题的提示词..."></textarea>
+                                <small>用于从原文中提取爆款选题，使用变量: {content}</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="baokuanExtractTemplate">爆款要素分析提示词</label>
+                                <textarea id="baokuanExtractTemplate" rows="6" placeholder="分析原文爆款要素的提示词..."></textarea>
+                                <small>用于分析原文的爆款要素和写作技巧，使用变量: {content}</small>
                             </div>
                             
                             <div class="form-group">
                                 <label for="baokuanGenerateTemplate">文章生成提示词</label>
-                                <textarea id="baokuanGenerateTemplate" rows="8" placeholder="根据选题和关键词生成爆款文的提示词..."></textarea>
-                                <small>使用变量: {topic}, {keywords}</small>
+                                <textarea id="baokuanGenerateTemplate" rows="8" placeholder="生成爆款文的提示词..."></textarea>
+                                <small>用于生成仿写文章，使用变量: {content}</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="baokuanFormatTemplate">排版优化提示词</label>
+                                <textarea id="baokuanFormatTemplate" rows="6" placeholder="优化文章排版的提示词..."></textarea>
+                                <small>用于优化生成文章的排版，使用变量: {content}</small>
                             </div>
                             
                             <div class="prompt-actions">

@@ -149,6 +149,16 @@ class PoemApp {
         }
         
         // 更新爆款文提示词
+        const baokuanExtractTitleTextarea = document.getElementById('baokuanExtractTitleTemplate');
+        if (baokuanExtractTitleTextarea) {
+            baokuanExtractTitleTextarea.value = this.prompts.baokuan.extractTitle;
+        }
+        
+        const baokuanExtractTopicTextarea = document.getElementById('baokuanExtractTopicTemplate');
+        if (baokuanExtractTopicTextarea) {
+            baokuanExtractTopicTextarea.value = this.prompts.baokuan.extractTopic;
+        }
+        
         const baokuanExtractTextarea = document.getElementById('baokuanExtractTemplate');
         if (baokuanExtractTextarea) {
             baokuanExtractTextarea.value = this.prompts.baokuan.extract;
@@ -157,6 +167,11 @@ class PoemApp {
         const baokuanGenerateTextarea = document.getElementById('baokuanGenerateTemplate');
         if (baokuanGenerateTextarea) {
             baokuanGenerateTextarea.value = this.prompts.baokuan.generate;
+        }
+        
+        const baokuanFormatTextarea = document.getElementById('baokuanFormatTemplate');
+        if (baokuanFormatTextarea) {
+            baokuanFormatTextarea.value = this.prompts.baokuan.format;
         }
     }
 
@@ -1412,16 +1427,22 @@ function resetPoetryPrompt() {
 }
 
 function saveBaokuanPrompts() {
+    const extractTitleText = document.getElementById('baokuanExtractTitleTemplate').value.trim();
+    const extractTopicText = document.getElementById('baokuanExtractTopicTemplate').value.trim();
     const extractText = document.getElementById('baokuanExtractTemplate').value.trim();
     const generateText = document.getElementById('baokuanGenerateTemplate').value.trim();
+    const formatText = document.getElementById('baokuanFormatTemplate').value.trim();
     
-    if (!extractText || !generateText) {
-        app.showToast('error', '提示词不能为空');
+    if (!extractTitleText || !extractTopicText || !extractText || !generateText || !formatText) {
+        app.showToast('error', '所有提示词不能为空');
         return;
     }
     
+    app.prompts.baokuan.extractTitle = extractTitleText;
+    app.prompts.baokuan.extractTopic = extractTopicText;
     app.prompts.baokuan.extract = extractText;
     app.prompts.baokuan.generate = generateText;
+    app.prompts.baokuan.format = formatText;
     app.savePrompts();
     app.showToast('success', '爆款文提示词已保存');
 }
@@ -1429,8 +1450,11 @@ function saveBaokuanPrompts() {
 function resetBaokuanPrompts() {
     if (confirm('确定要恢复默认的爆款文提示词吗？')) {
         const defaultPrompts = app.getDefaultPrompts();
+        document.getElementById('baokuanExtractTitleTemplate').value = defaultPrompts.baokuan.extractTitle;
+        document.getElementById('baokuanExtractTopicTemplate').value = defaultPrompts.baokuan.extractTopic;
         document.getElementById('baokuanExtractTemplate').value = defaultPrompts.baokuan.extract;
         document.getElementById('baokuanGenerateTemplate').value = defaultPrompts.baokuan.generate;
+        document.getElementById('baokuanFormatTemplate').value = defaultPrompts.baokuan.format;
         app.showToast('info', '已恢复默认提示词');
     }
 }
