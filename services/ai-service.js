@@ -387,7 +387,7 @@ class AIService {
      */
     buildPrompt({ author, title, style, keywords, content }) {
         // 如果content已经是完整的提示词（爆款文仿写），直接返回
-        if (content && (content.length > 200 || content.includes('仿写') || content.includes('爆款'))) {
+        if (content && (content.length > 200 || content.includes('仿写') || content.includes('爆款') || content.includes('请仿写'))) {
             return content;
         }
         
