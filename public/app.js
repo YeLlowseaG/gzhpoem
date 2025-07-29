@@ -602,11 +602,15 @@ class PoemApp {
     renderMarkdown(content) {
         // 简单的markdown渲染
         return content
+            // 先移除占位符图片（如封面图片的占位符）
+            .replace(/!\[封面图片\]\([^)]+\)/g, '')
+            .replace(/!\[.*?\]\(https:\/\/images\.unsplash\.com[^)]*\)/g, '')
             .replace(/^# (.+)$/gm, '<h1>$1</h1>')
             .replace(/^## (.+)$/gm, '<h2>$1</h2>')
             .replace(/^### (.+)$/gm, '<h3>$1</h3>')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            // 渲染真实图片（排除已移除的占位符图片）
             .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; margin: 1rem 0;">')
             .replace(/\n\n/g, '</p><p>')
             .replace(/\n/g, '<br>')
