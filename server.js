@@ -639,8 +639,47 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
             
             // 处理结果
             if (articleResult.status === 'fulfilled' && articleResult.value?.content) {
-                finalContent = articleResult.value.content;
+                const rawContent = articleResult.value.content;
                 console.log('✅ 爆款文内容生成成功');
+                
+                // AI排版优化
+                console.log('🎨 开始AI排版优化...');
+                try {
+                    const formatResult = await aiService.generateWithAI({
+                        author: '', title: '', style: '', keywords: '',
+                        content: customPrompts && customPrompts.format ? 
+                            customPrompts.format.replace('{content}', rawContent) :
+                            `请对以下文章进行排版优化，提升阅读体验：
+
+${rawContent}
+
+排版优化要求：
+1. **段落结构优化**：合理分段，每段2-4句话，避免大段文字
+2. **重点内容突出**：对关键信息使用**加粗**标记
+3. **添加适当的分隔符**：在不同主题之间添加 --- 分隔线
+4. **优化开头结尾**：确保开头抓人眼球，结尾呼吁行动
+5. **保持原文内容不变**：只调整排版格式，不修改文字内容
+6. **适合移动端阅读**：考虑手机屏幕的阅读习惯
+
+**格式要求**：
+- 使用markdown格式
+- 保持文章的完整性和流畅性
+- 确保排版美观易读
+
+请开始排版优化：`
+                    });
+                    
+                    if (formatResult && formatResult.content) {
+                        finalContent = formatResult.content;
+                        console.log('✅ AI排版优化完成');
+                    } else {
+                        finalContent = rawContent; // 优化失败则使用原内容
+                        console.log('⚠️ AI排版优化失败，使用原内容');
+                    }
+                } catch (error) {
+                    console.log('⚠️ AI排版优化出错:', error.message);
+                    finalContent = rawContent; // 出错则使用原内容
+                }
             }
             
             if (titleResult.status === 'fulfilled' && titleResult.value) {
