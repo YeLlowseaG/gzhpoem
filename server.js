@@ -530,65 +530,16 @@ app.post('/api/baokuan/generate', async (req, res) => {
             originContent = originContent.replace(/\s+/g, ' ').trim();
             originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
         }
-        // 3. AI分析爆款要素和写作技巧
-        let topic = '', keywords = [], explosiveElements = '';
-        if (aiService.isConfigured()) {
-            const extractPrompt = customPrompts && customPrompts.extract ? 
-                customPrompts.extract.replace('{content}', originContent.slice(0, 2000)) :
-                `请深度分析以下爆款文章，提取其成功的爆点要素和写作技巧：\n\n文章内容：${originContent.slice(0, 2000)}\n\n请从以下维度进行分析：\n1. 爆款标题技巧（为什么这个标题吸引人？用了什么套路？）\n2. 开头抓人技巧（如何在前3句话抓住读者？）\n3. 情感触点分析（触动了读者什么情感？恐惧/焦虑/好奇/共鸣？）\n4. 内容结构特点（用了什么逻辑结构？对比/反转/递进？）\n5. 表达方式特色（语言风格、修辞手法、互动元素）\n6. 传播引爆点（什么地方最容易被转发/讨论？）\n\n输出格式：\n标题技巧：xxx\n开头套路：xxx\n情感触点：xxx\n结构特点：xxx\n表达特色：xxx\n引爆点：xxx`;
-            
-            const aiExtract = await aiService.generateWithAI({
-                author: '', title: '', style: '', keywords: '', content: extractPrompt
-            });
-            
-            if (aiExtract && aiExtract.content) {
-                explosiveElements = aiExtract.content;
-                // 让AI从分析中提取真正的爆款选题
-                const topicPrompt = `请根据以下分析结果，提取出这篇文章的核心爆款选题（一句话概括）：\n\n${explosiveElements}\n\n请只返回一个简洁的选题概括，不要解释。`;
-                try {
-                    const topicResult = await aiService.generateWithAI({
-                        author: '', title: '', style: '', keywords: '', content: topicPrompt
-                    });
-                    let rawTopic = (topicResult && topicResult.content) ? topicResult.content.trim() : originTitle || '类似风格文章';
-                    
-                    // 清理topic内容，移除URL和图片语法
-                    topic = rawTopic
-                        .replace(/!\[.*?\]\(.*?\)/g, '') // 移除markdown图片语法
-                        .replace(/https?:\/\/[^\s]+/g, '') // 移除URL
-                        .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
-                        .replace(/\s+/g, ' ') // 移除多余空格
-                        .trim();
-                        
-                    // 如果清理后为空，使用默认值
-                    if (!topic) {
-                        topic = originTitle || '类似风格文章';
-                    }
-                } catch (error) {
-                    console.log('爆款选题提取失败，使用默认值');
-                    topic = originTitle || '类似风格文章';
-                }
-                keywords = explosiveElements.split('\n').filter(line => line.includes('：')).map(line => line.split('：')[1]?.trim()).filter(Boolean);
-            }
-        }
-        // 4. AI生成完整的仿写爆款文内容包（文章+标题+封面）
-        let finalContent = '', titles = [], cover = null;
-        if (aiService.isConfigured() && explosiveElements) {
-            const genPrompt = `请严格仿写以下爆款文章的结构、套路和写作技巧，但内容要完全原创：\n\n爆款要素分析：\n${explosiveElements}\n\n仿写要求：\n1. 模仿原文的标题套路，但改为全新的话题\n2. 借鉴原文的开头方式，但用不同的内容\n3. 采用原文的情感触点，但应用到新的场景\n4. 使用原文的结构特点，但填入原创内容\n5. 复制原文的表达特色，但避免任何相似的具体内容\n6. 利用原文的引爆点，但创造全新的讨论点\n\n注意：这是仿写练习，要学习套路但内容必须100%原创，与原文完全不同。`;
-            const aiGen = await aiService.generateWithAI({
-                author: '', title: topic, style: 'popular', keywords: keywords.join(','), content: genPrompt
-            });
-            finalContent = aiGen && aiGen.content ? aiGen.content : '';
-        }
         res.json({
             success: true,
             originTitle,
             originSummary,
-            topic,
-            keywords,
-            content: finalContent,
-            titles: titles || [],
-            cover: cover || null,
-            explosiveElements: explosiveElements // 返回分析的爆款要素，供前端显示
+            topic: originTitle || '仿写文章',
+            keywords: [],
+            content: '',
+            titles: [],
+            cover: null,
+            originalContent: originContent.slice(0, 500) + '...' // 返回原文摘要，供前端显示
         });
     } catch (error) {
         res.json({ success: false, error: '爆款文生成失败: ' + error.message });
@@ -628,50 +579,11 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
             originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
         }
 
-        // 3. AI分析爆款要素和写作技巧
-        let topic = '', keywords = [], explosiveElements = '';
-        if (aiService.isConfigured()) {
-            const extractPrompt = customPrompts && customPrompts.extract ? 
-                customPrompts.extract.replace('{content}', originContent.slice(0, 2000)) :
-                `请深度分析以下爆款文章，提取其成功的爆点要素和写作技巧：\n\n文章内容：${originContent.slice(0, 2000)}\n\n请从以下维度进行分析：\n1. 爆款标题技巧（为什么这个标题吸引人？用了什么套路？）\n2. 开头抓人技巧（如何在前3句话抓住读者？）\n3. 情感触点分析（触动了读者什么情感？恐惧/焦虑/好奇/共鸣？）\n4. 内容结构特点（用了什么逻辑结构？对比/反转/递进？）\n5. 表达方式特色（语言风格、修辞手法、互动元素）\n6. 传播引爆点（什么地方最容易被转发/讨论？）\n\n输出格式：\n标题技巧：xxx\n开头套路：xxx\n情感触点：xxx\n结构特点：xxx\n表达特色：xxx\n引爆点：xxx`;
-            
-            const aiExtract = await aiService.generateWithAI({
-                author: '', title: '', style: '', keywords: '', content: extractPrompt
-            });
-            
-            if (aiExtract && aiExtract.content) {
-                explosiveElements = aiExtract.content;
-                // 让AI从分析中提取真正的爆款选题
-                const topicPrompt = `请根据以下分析结果，提取出这篇文章的核心爆款选题（一句话概括）：\n\n${explosiveElements}\n\n请只返回一个简洁的选题概括，不要解释。`;
-                try {
-                    const topicResult = await aiService.generateWithAI({
-                        author: '', title: '', style: '', keywords: '', content: topicPrompt
-                    });
-                    let rawTopic = (topicResult && topicResult.content) ? topicResult.content.trim() : originTitle || '类似风格文章';
-                    
-                    // 清理topic内容，移除URL和图片语法
-                    topic = rawTopic
-                        .replace(/!\[.*?\]\(.*?\)/g, '') // 移除markdown图片语法
-                        .replace(/https?:\/\/[^\s]+/g, '') // 移除URL
-                        .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
-                        .replace(/\s+/g, ' ') // 移除多余空格
-                        .trim();
-                        
-                    // 如果清理后为空，使用默认值
-                    if (!topic) {
-                        topic = originTitle || '类似风格文章';
-                    }
-                } catch (error) {
-                    console.log('爆款选题提取失败，使用默认值');
-                    topic = originTitle || '类似风格文章';
-                }
-                keywords = explosiveElements.split('\n').filter(line => line.includes('：')).map(line => line.split('：')[1]?.trim()).filter(Boolean);
-            }
-        }
-
-        // 4. AI生成完整的仿写爆款文内容包（文章+标题+封面）
+        // 3. 直接基于原文仿写爆款文
+        let topic = originTitle || '仿写文章';
         let finalContent = '', titles = [], cover = null;
-        if (aiService.isConfigured() && explosiveElements) {
+        
+        if (aiService.isConfigured() && originContent) {
             // 并行生成文章、标题、封面
             const [articleResult, titleResult, coverResult] = await Promise.allSettled([
                 // 生成文章内容
@@ -679,10 +591,10 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
                     author: '', 
                     title: topic, 
                     style: 'popular', 
-                    keywords: keywords.join(','), 
+                    keywords: '', 
                     content: customPrompts && customPrompts.generate ? 
-                        customPrompts.generate.replace('{keywords}', explosiveElements) :
-                        `请使用以下爆款写作技巧，仿写一篇类似风格的爆款文章：\n\n分析出的爆款要素：${explosiveElements}\n\n仿写要求：\n1. **严格模仿标题套路**：使用相同的标题技巧、关键词和吸引力公式\n2. **复制开头套路**：完全模仿原文的开头方式和情感触点\n3. **保持相同结构**：使用相同的段落组织、逻辑展开和表达方式\n4. **复制传播引爆点**：保持原文最容易被转发/讨论的元素\n5. **保持相似主题领域**：在类似或相关的领域内创作，不要完全改变主题\n6. **相似的核心内容**：保持原文的核心观点和内容方向\n7. 字数控制在800-1200字\n\n**文章格式要求**：\n- **必须是连贯完整的文章**，不要出现“第一段”、“第二段”、“结尾”等标记\n- **不要使用段落标题**，直接写正文内容\n- **保持文字流畅自然**，像一篇正常的微信文章\n\n**重要提醒**：\n- 不要强行改成诗词主题，保持原文的核心领域和内容方向\n- 重点是仿写风格和套路，而不是改变主题\n- 如枟原文讲的是职场，你也写职场；原文讲情感，你也写情感\n\n请开始仿写：`
+                        customPrompts.generate.replace('{content}', originContent.slice(0, 2000)) :
+                        `请仿写以下文章，创作一篇类似风格和主题的爆款文章：\n\n原文内容：\n${originContent.slice(0, 2000)}\n\n仿写要求：\n1. **保持相同主题领域**：严格按照原文的主题来创作（诗词→诗词，职场→职场，情感→情感）\n2. **模仿文章结构**：参考原文的段落组织和逻辑展开方式\n3. **保持相似语言风格**：学习原文的表达方式和语言特色\n4. **创造爆款标题**：设计吸引人的标题，但要符合原文主题\n5. **字数控制在800-1200字**\n\n**文章格式要求**：\n- **必须是连贯完整的文章**，不要出现“第一段”、“第二段”、“结尾”等标记\n- **不要使用段落标题**，直接写正文内容\n- **保持文字流畅自然**，像一篇正常的微信文章\n\n**重要：绝对不能改变原文的主题领域，必须在相同领域内创作！**\n\n请开始仿写：`
                 }),
                 
                 // 生成爆款标题 - 使用原文主题领域而不是固定的诗词
@@ -728,7 +640,7 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
             content: finalContent,
             titles: titles,
             cover: cover,
-            explosiveElements: explosiveElements // 返回分析的爆款要素，供前端显示
+            originalContent: originContent.slice(0, 500) + '...' // 返回原文摘要，供前端显示
         });
 
     } catch (error) {
