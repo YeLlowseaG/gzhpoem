@@ -568,8 +568,52 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
             originSummary = originContent.slice(0, 200) + (originContent.length > 200 ? '...' : '');
         }
 
-        // 3. 直接基于原文仿写爆款文
-        let topic = originTitle || '仿写文章';
+        // 3. AI提取原文标题和爆款选题
+        let extractedTitle = originTitle || '仿写文章';
+        let topic = '仿写文章';
+        
+        if (aiService.isConfigured() && originContent) {
+            // 首先提取原文标题和爆款选题
+            const [titleExtractResult, topicExtractResult] = await Promise.allSettled([
+                // 提取原文标题
+                aiService.generateWithAI({
+                    author: '', title: '', style: '', keywords: '', 
+                    content: customPrompts && customPrompts.extractTitle ? 
+                        customPrompts.extractTitle.replace('{content}', originContent.slice(0, 1000)) :
+                        `请从以下内容中提取出原文的标题，如果没有明确标题，请根据内容概括一个简洁的标题：\n\n${originContent.slice(0, 1000)}\n\n请只返回标题，不要解释。`
+                }),
+                // 提取爆款选题
+                aiService.generateWithAI({
+                    author: '', title: '', style: '', keywords: '', 
+                    content: customPrompts && customPrompts.extractTopic ? 
+                        customPrompts.extractTopic.replace('{content}', originContent.slice(0, 1000)) :
+                        `请从以下内容中提取出适合做爆款文章的核心选题（一句话概括这篇文章的核心亮点或吸引点）：\n\n${originContent.slice(0, 1000)}\n\n请只返回选题概括，不要解释。`
+                })
+            ]);
+            
+            // 处理提取结果
+            if (titleExtractResult.status === 'fulfilled' && titleExtractResult.value?.content) {
+                extractedTitle = titleExtractResult.value.content.trim()
+                    .replace(/!\[.*?\]\(.*?\)/g, '') // 移除markdown图片语法
+                    .replace(/https?:\/\/[^\s]+/g, '') // 移除URL
+                    .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
+                    .replace(/\s+/g, ' ') // 移除多余空格
+                    .trim();
+                console.log('✅ 原文标题提取成功:', extractedTitle);
+            }
+            
+            if (topicExtractResult.status === 'fulfilled' && topicExtractResult.value?.content) {
+                topic = topicExtractResult.value.content.trim()
+                    .replace(/!\[.*?\]\(.*?\)/g, '') // 移除markdown图片语法
+                    .replace(/https?:\/\/[^\s]+/g, '') // 移除URL
+                    .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
+                    .replace(/\s+/g, ' ') // 移除多余空格
+                    .trim();
+                console.log('✅ 爆款选题提取成功:', topic);
+            }
+        }
+        
+        // 4. 基于提取的信息生成仿写爆款文
         let finalContent = '', titles = [], cover = null;
         
         if (aiService.isConfigured() && originContent) {
@@ -622,9 +666,9 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
         
         res.json({
             success: true,
-            originTitle,
+            originTitle: extractedTitle, // 使用AI提取的原文标题
             originSummary,
-            topic,
+            topic, // 使用AI提取的爆款选题
             keywords: [],
             content: finalContent,
             titles: titles,
