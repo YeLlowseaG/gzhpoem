@@ -577,7 +577,31 @@ class PoemApp {
         // 显示封面预览
         if (articleData.cover && articleData.cover.success) {
             displayContent += '<div class="cover-preview"><h4>🖼️ 文字封面预览：</h4>';
-            displayContent += `<div class="cover-preview-container">${articleData.cover.html}</div>`;
+            if (articleData.cover.html) {
+                displayContent += `<div class="cover-preview-container">${articleData.cover.html}</div>`;
+            } else {
+                // 如果HTML封面未生成，显示简单的文字封面
+                displayContent += `<div class="cover-preview-container">
+                    <div style="
+                        width: 200px; 
+                        height: 280px; 
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        color: white; 
+                        display: flex; 
+                        flex-direction: column; 
+                        justify-content: center; 
+                        align-items: center; 
+                        text-align: center; 
+                        border-radius: 8px; 
+                        padding: 20px; 
+                        box-sizing: border-box;
+                        font-family: '华文行楷', serif;
+                    ">
+                        <div style="font-size: 18px; margin-bottom: 10px;">${articleData.metadata?.author || '诗词'}</div>
+                        <div style="font-size: 16px; line-height: 1.5;">${articleData.metadata?.title || '经典诗词赏析'}</div>
+                    </div>
+                </div>`;
+            }
             displayContent += '</div><hr>';
         }
         

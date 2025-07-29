@@ -43,17 +43,314 @@ class CoverGenerator {
     }
 
     /**
-     * 生成文字封面
+     * 两层封面图策略：Unsplash API + 本地兜底
+     */
+    async generateWebCover(author, title, style = 'classic') {
+        try {
+            console.log(`🎨 开始生成封面: ${author} - ${title}`);
+            
+            // 第一层：根据诗词内容生成搜索关键词，改进在线图片服务
+            const searchKeywords = this.generatePoetryKeywords(author, title, style);
+            console.log(`🔍 搜索关键词: ${searchKeywords}`);
+            
+            const imageUrl = await this.fetchFromOnlineServices(searchKeywords, author, title);
+            
+            if (imageUrl) {
+                console.log(`✅ 在线图片获取成功: ${imageUrl}`);
+                return {
+                    success: true,
+                    imageUrl: imageUrl,
+                    type: 'web_image',
+                    source: 'online_service',
+                    keywords: searchKeywords
+                };
+            }
+            
+            console.log('⚠️ 在线图片获取失败，切换到本地兜底图片');
+            
+        } catch (error) {
+            console.error('🚨 在线图片服务调用失败:', error.message);
+        }
+        
+        // 第二层：本地兜底封面（你的cover-1.jpg和cover-2.jpg）
+        try {
+            const localImagePath = await this.getLocalCoverImage();
+            if (localImagePath) {
+                console.log(`✅ 使用本地兜底封面: ${localImagePath}`);
+                return {
+                    success: true,
+                    imageUrl: localImagePath,
+                    type: 'local_image',
+                    source: 'local_fallback'
+                };
+            }
+        } catch (error) {
+            console.error('🚨 本地封面图片也失败:', error.message);
+        }
+        
+        // 最终保障：返回失败，让系统生成文字封面
+        console.log('❌ 所有封面图片获取失败');
+        return {
+            success: false,
+            error: '无法获取封面图片'
+        };
+    }
+
+    /**
+     * 智能生成诗词相关搜索关键词
+     */
+    generatePoetryKeywords(author, title, style) {
+        // 诗人特色关键词映射
+        const authorKeywords = {
+            '李白': ['mountains', 'moon', 'waterfall', 'river', 'wine', 'ancient china'],
+            '杜甫': ['spring flowers', 'autumn leaves', 'traditional house', 'melancholy', 'chinese landscape'],
+            '王维': ['bamboo', 'quiet', 'zen', 'meditation', 'peaceful nature'],
+            '白居易': ['lake', 'simple life', 'countryside', 'calm water', 'traditional'],
+            '苏轼': ['bold landscape', 'magnificent', 'river view', 'heroic', 'vast'],
+            '李清照': ['delicate flowers', 'graceful', 'feminine', 'tender', 'elegant'],
+            '辛弃疾': ['warrior', 'battlefield', 'heroic', 'strong', 'patriotic'],
+            '陆游': ['patriotic', 'hometown', 'dedication', 'loyal', 'chinese culture']
+        };
+
+        // 题目关键词提取
+        const titleKeywords = this.extractTitleKeywords(title);
+        
+        // 风格关键词
+        const styleKeywords = {
+            'classic': ['traditional', 'ancient', 'classical'],
+            'modern': ['contemporary', 'artistic', 'minimalist'],
+            'elegant': ['elegant', 'refined', 'sophisticated'],
+            'poetry': ['poetic', 'lyrical', 'romantic']
+        };
+
+        // 组合关键词
+        const keywords = [
+            ...(authorKeywords[author] || ['chinese poetry', 'ancient', 'traditional']),
+            ...titleKeywords,
+            ...(styleKeywords[style] || []),
+            'chinese culture',
+            'artistic'
+        ];
+
+        // 随机选择3-4个关键词
+        const selectedKeywords = this.shuffleArray(keywords).slice(0, 4);
+        return selectedKeywords.join(' ');
+    }
+
+    /**
+     * 从标题提取关键词
+     */
+    extractTitleKeywords(title) {
+        const keywordMap = {
+            '静夜思': ['night', 'moon', 'quiet', 'contemplation'],
+            '望庐山瀑布': ['waterfall', 'mountain', 'magnificent'],
+            '春晓': ['spring', 'morning', 'flowers', 'birds'],
+            '登鹳雀楼': ['tower', 'river', 'sunset', 'vast view'],
+            '相思': ['love', 'longing', 'red beans', 'romance'],
+            '枫桥夜泊': ['bridge', 'night', 'boat', 'temple'],
+            '黄鹤楼': ['tower', 'river', 'yellow crane', 'ancient'],
+            '将进酒': ['wine', 'celebration', 'joy', 'feast'],
+            '水调歌头': ['moon', 'Mid-Autumn', 'reunion', 'family'],
+            '念奴娇': ['river', 'historical', 'heroic', 'reflection'],
+            '虞美人': ['flowers', 'beauty', 'melancholy', 'palace'],
+            '青玉案': ['lantern festival', 'crowd', 'search', 'night']
+        };
+
+        // 直接匹配
+        if (keywordMap[title]) {
+            return keywordMap[title];
+        }
+
+        // 模糊匹配
+        for (const [key, words] of Object.entries(keywordMap)) {
+            if (title.includes(key.substring(0, 2))) {
+                return words;
+            }
+        }
+
+        // 通用诗词关键词
+        return ['nature', 'peaceful', 'traditional', 'beauty'];
+    }
+
+    /**
+     * 打乱数组
+     */
+    shuffleArray(array) {
+        const newArray = [...array];
+        for (let i = newArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+        }
+        return newArray;
+    }
+
+    /**
+     * 从改进的在线图片服务获取图片（使用智能关键词）
+     */
+    async fetchFromOnlineServices(keywords, author, title) {
+        try {
+            // 基于关键词的颜色主题选择
+            const colorTheme = this.getColorThemeFromKeywords(keywords);
+            
+            // 改进的图片服务URL列表，使用智能关键词
+            const imageServices = [
+                // Picsum with intelligent sizing based on poetry theme
+                `https://picsum.photos/600/400.jpg?random=${this.hashString(keywords)}`,
+                
+                // DummyImage with poetry-themed colors and text
+                `https://dummyimage.com/600x400/${colorTheme.bg}/${colorTheme.text}.jpg&text=${encodeURIComponent(author + ' ' + title)}`,
+                
+                // Placeholder with poetry styling
+                `https://via.placeholder.com/600x400/${colorTheme.bg}/${colorTheme.text}?text=${encodeURIComponent('最美诗词·' + author)}`,
+                
+                // LoremPicsum with nature category (more relevant for poetry)
+                `https://picsum.photos/600/400?category=nature&random=${this.hashString(author + title)}`,
+                
+                // Backup with simple color
+                `https://dummyimage.com/600x400/e8f4f8/2c3e50.jpg&text=${encodeURIComponent('诗词赏析')}`
+            ];
+
+            console.log(`🔍 使用智能关键词获取图片: ${keywords}`);
+            console.log(`🎨 选择配色方案: ${colorTheme.name}`);
+            
+            for (const imageUrl of imageServices) {
+                try {
+                    console.log(`📸 尝试下载封面: ${imageUrl.substring(0, 60)}...`);
+                    const response = await axios.get(imageUrl, {
+                        responseType: 'arraybuffer',
+                        timeout: 8000,
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+                        }
+                    });
+                    
+                    const buffer = Buffer.from(response.data);
+                    
+                    // 检查图片大小是否合理（1KB-2MB）
+                    if (buffer.length > 1000 && buffer.length < 2 * 1024 * 1024) {
+                        console.log(`✅ 智能封面下载成功: ${buffer.length} bytes`);
+                        return imageUrl;
+                    } else {
+                        console.warn(`图片大小不合适: ${buffer.length} bytes`);
+                    }
+                    
+                } catch (error) {
+                    console.warn(`下载失败: ${error.message}`);
+                    continue;
+                }
+            }
+
+            console.log('❌ 所有在线图片服务都失败');
+            return null;
+
+        } catch (error) {
+            console.error('🚨 在线图片服务调用失败:', error.message);
+            return null;
+        }
+    }
+
+    /**
+     * 根据关键词获取配色主题
+     */
+    getColorThemeFromKeywords(keywords) {
+        const themes = {
+            nature: { name: '自然', bg: 'e8f5e8', text: '2d5f2d' },
+            moon: { name: '月夜', bg: 'e8f4f8', text: '2c3e50' },
+            spring: { name: '春意', bg: 'f0f8e8', text: '4a5d23' },
+            autumn: { name: '秋韵', bg: 'f8f0e8', text: '8b4513' },
+            water: { name: '水韵', bg: 'e8f4ff', text: '1e3a8a' },
+            mountain: { name: '山峦', bg: 'f5f5f5', text: '4a5568' },
+            wine: { name: '醉意', bg: 'fdf2f8', text: '7c2d12' },
+            classical: { name: '古典', bg: 'fef7e0', text: '92400e' }
+        };
+
+        const lowerKeywords = keywords.toLowerCase();
+        
+        if (lowerKeywords.includes('moon') || lowerKeywords.includes('night')) return themes.moon;
+        if (lowerKeywords.includes('spring') || lowerKeywords.includes('flower')) return themes.spring;
+        if (lowerKeywords.includes('autumn') || lowerKeywords.includes('leaf')) return themes.autumn;
+        if (lowerKeywords.includes('mountain') || lowerKeywords.includes('peak')) return themes.mountain;
+        if (lowerKeywords.includes('water') || lowerKeywords.includes('river')) return themes.water;
+        if (lowerKeywords.includes('wine') || lowerKeywords.includes('celebration')) return themes.wine;
+        if (lowerKeywords.includes('nature') || lowerKeywords.includes('bamboo')) return themes.nature;
+        
+        return themes.classical; // 默认古典风格
+    }
+
+    /**
+     * 字符串哈希函数（用于生成稳定的随机种子）
+     */
+    hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash) % 10000;
+    }
+
+    /**
+     * 获取本地兜底封面图片
+     */
+    async getLocalCoverImage() {
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            // 本地封面图片路径
+            const localCovers = [
+                path.join(__dirname, '..', 'assets', 'cover-1.jpg'),
+                path.join(__dirname, '..', 'assets', 'cover-2.jpg')
+            ];
+            
+            // 检查哪些图片存在
+            const availableCovers = [];
+            for (const coverPath of localCovers) {
+                try {
+                    await fs.access(coverPath);
+                    availableCovers.push(coverPath);
+                    console.log(`✅ 找到本地封面: ${path.basename(coverPath)}`);
+                } catch (error) {
+                    console.log(`❌ 本地封面不存在: ${path.basename(coverPath)}`);
+                }
+            }
+            
+            if (availableCovers.length === 0) {
+                console.log('❌ 没有找到任何本地封面图片');
+                return null;
+            }
+            
+            // 随机选择一张本地封面
+            const randomIndex = Math.floor(Math.random() * availableCovers.length);
+            const selectedCover = availableCovers[randomIndex];
+            
+            // 返回相对路径，用于Web访问
+            const relativePath = `/assets/${path.basename(selectedCover)}`;
+            console.log(`🎲 随机选择本地封面: ${relativePath}`);
+            
+            return relativePath;
+            
+        } catch (error) {
+            console.error('🚨 获取本地封面失败:', error.message);
+            return null;
+        }
+    }
+
+    /**
+     * 生成文字封面（保留原功能）
      */
     async generateTextCover(author, title, style = 'classic') {
         try {
-            // 生成文字封面设计
+            // 优先尝试获取网站封面图
+            const webCover = await this.generateWebCover(author, title, style);
+            if (webCover.success && webCover.imageUrl) {
+                return webCover;
+            }
+            
+            // 降级到HTML文字封面
             const coverDesign = await this.createTextCoverDesign(author, title, style);
-            
-            // 生成HTML封面
             const htmlCover = this.generateHTMLCover(coverDesign);
-            
-            // 如果可能，生成图片封面
             const imageCover = await this.generateImageCover(coverDesign);
             
             return {

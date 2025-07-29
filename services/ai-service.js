@@ -206,11 +206,11 @@ class AIService {
             
             // 处理封面结果
             let finalCover;
-            if (coverResult.status === 'fulfilled' && coverResult.value.success) {
+            if (coverResult.status === 'fulfilled' && coverResult.value.success && !coverResult.value.useDefault) {
                 finalCover = coverResult.value;
                 console.log('🎨 使用AI生成的封面');
             } else {
-                console.log('⚠️ AI封面生成失败，使用默认文字封面');
+                console.log('⚠️ AI封面生成失败或使用默认，生成文字封面');
                 // 降级到文字封面
                 finalCover = await this.coverGenerator.generateTextCover(author, title, style);
             }
