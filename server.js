@@ -546,11 +546,12 @@ app.post('/api/baokuan/generate', async (req, res) => {
                 // 从分析结果中提取核心信息作为topic和keywords
                 const titleMatch = aiExtract.content.match(/标题技巧[:：]\s*(.+)/);
                 const emotionMatch = aiExtract.content.match(/情感触点[:：]\s*(.+)/);
-                topic = titleMatch ? `借鉴爆款技巧的诗词文章` : '诗词爆款文';
+                // 从原文标题和内容中提取主题领域，不强制改为诗词
+                topic = originTitle || '类似风格文章';
                 keywords = explosiveElements.split('\n').filter(line => line.includes('：')).map(line => line.split('：')[1]?.trim()).filter(Boolean);
             }
         }
-        // 4. AI生成完整的诗词爆款文内容包（文章+标题+封面）
+        // 4. AI生成完整的仿写爆款文内容包（文章+标题+封面）
         let finalContent = '', titles = [], cover = null;
         if (aiService.isConfigured() && explosiveElements) {
             const genPrompt = `请严格仿写以下爆款文章的结构、套路和写作技巧，但内容要完全原创：\n\n爆款要素分析：\n${explosiveElements}\n\n仿写要求：\n1. 模仿原文的标题套路，但改为全新的话题\n2. 借鉴原文的开头方式，但用不同的内容\n3. 采用原文的情感触点，但应用到新的场景\n4. 使用原文的结构特点，但填入原创内容\n5. 复制原文的表达特色，但避免任何相似的具体内容\n6. 利用原文的引爆点，但创造全新的讨论点\n\n注意：这是仿写练习，要学习套路但内容必须100%原创，与原文完全不同。`;
@@ -624,12 +625,13 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
                 // 从分析结果中提取核心信息作为topic和keywords
                 const titleMatch = aiExtract.content.match(/标题技巧[:：]\s*(.+)/);
                 const emotionMatch = aiExtract.content.match(/情感触点[:：]\s*(.+)/);
-                topic = titleMatch ? `借鉴爆款技巧的诗词文章` : '诗词爆款文';
+                // 从原文标题和内容中提取主题领域，不强制改为诗词
+                topic = originTitle || '类似风格文章';
                 keywords = explosiveElements.split('\n').filter(line => line.includes('：')).map(line => line.split('：')[1]?.trim()).filter(Boolean);
             }
         }
 
-        // 4. AI生成完整的诗词爆款文内容包（文章+标题+封面）
+        // 4. AI生成完整的仿写爆款文内容包（文章+标题+封面）
         let finalContent = '', titles = [], cover = null;
         if (aiService.isConfigured() && explosiveElements) {
             // 并行生成文章、标题、封面
@@ -643,8 +645,8 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
                     content: `请严格仿写以下爆款文章的结构、套路和写作技巧，但内容要完全原创：\n\n爆款要素分析：\n${explosiveElements}\n\n仿写要求：\n1. 模仿原文的标题套路，但改为全新的话题\n2. 借鉴原文的开头方式，但用不同的内容\n3. 采用原文的情感触点，但应用到新的场景\n4. 使用原文的结构特点，但填入原创内容\n5. 复制原文的表达特色，但避免任何相似的具体内容\n6. 利用原文的引爆点，但创造全新的讨论点\n\n注意：这是仿写练习，要学习套路但内容必须100%原创，与原文完全不同。`
                 }),
                 
-                // 生成爆款标题
-                aiService.titleGenerator.generateMultipleTitles('诗词', topic, 'popular', 3),
+                // 生成爆款标题 - 使用原文主题领域而不是固定的诗词
+                aiService.titleGenerator.generateMultipleTitles('仿写文章', topic, 'popular', 3),
                 
                 // 生成封面图 - 使用默认封面，不调用AI图片生成
                 Promise.resolve({ success: true, imageUrl: null, useDefault: true })
