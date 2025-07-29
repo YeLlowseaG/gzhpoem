@@ -699,7 +699,14 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
             }
             
             if (titleResult.status === 'fulfilled' && titleResult.value) {
-                titles = titleResult.value;
+                // 清理标题中的URL和markdown语法
+                titles = titleResult.value.map(title => 
+                    title.replace(/!\[.*?\]\(.*?\)/g, '') // 移除markdown图片语法
+                         .replace(/https?:\/\/[^\s]+/g, '') // 移除URL
+                         .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
+                         .replace(/\s+/g, ' ') // 移除多余空格
+                         .trim()
+                );
                 console.log('✅ 爆款文标题生成成功, 共', titles.length, '个');
             }
             
@@ -910,8 +917,19 @@ app.post('/api/wechat/upload', async (req, res) => {
         
         console.log(`📤 上传完整内容包到微信: ${articleData.metadata?.title || '未知标题'}`);
         
-        // 上传到微信（支持选择的标题）
-        const result = await wechatService.uploadToDraft(articleData, appId, appSecret, selectedTitle);
+        // 清理选择的标题中的URL和markdown语法
+        let cleanedTitle = selectedTitle;
+        if (selectedTitle) {
+            cleanedTitle = selectedTitle
+                .replace(/!\[.*?\]\(.*?\)/g, '') // 移除markdown图片语法
+                .replace(/https?:\/\/[^\s]+/g, '') // 移除URL
+                .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
+                .replace(/\s+/g, ' ') // 移除多余空格
+                .trim();
+        }
+        
+        // 上传到微信（使用清理后的标题）
+        const result = await wechatService.uploadToDraft(articleData, appId, appSecret, cleanedTitle);
         
         // 如果上传成功，标记文章状态
         if (result.success && articleId) {
