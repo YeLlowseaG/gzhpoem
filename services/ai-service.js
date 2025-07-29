@@ -386,6 +386,12 @@ class AIService {
      * 构建AI提示词
      */
     buildPrompt({ author, title, style, keywords, content }) {
+        // 如果content已经是完整的提示词（爆款文仿写），直接返回
+        if (content && (content.length > 200 || content.includes('仿写') || content.includes('爆款'))) {
+            return content;
+        }
+        
+        // 否则使用诗词赏析的默认提示词
         const styleMap = {
             'popular': '通俗易懂，贴近现代读者',
             'literary': '文雅精致，具有古典美感',
