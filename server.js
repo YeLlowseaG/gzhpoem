@@ -549,7 +549,20 @@ app.post('/api/baokuan/generate', async (req, res) => {
                     const topicResult = await aiService.generateWithAI({
                         author: '', title: '', style: '', keywords: '', content: topicPrompt
                     });
-                    topic = (topicResult && topicResult.content) ? topicResult.content.trim() : originTitle || '类似风格文章';
+                    let rawTopic = (topicResult && topicResult.content) ? topicResult.content.trim() : originTitle || '类似风格文章';
+                    
+                    // 清理topic内容，移除URL和图片语法
+                    topic = rawTopic
+                        .replace(/!\[.*?\]\(.*?\)/g, '') // 移除markdown图片语法
+                        .replace(/https?:\/\/[^\s]+/g, '') // 移除URL
+                        .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
+                        .replace(/\s+/g, ' ') // 移除多余空格
+                        .trim();
+                        
+                    // 如果清理后为空，使用默认值
+                    if (!topic) {
+                        topic = originTitle || '类似风格文章';
+                    }
                 } catch (error) {
                     console.log('爆款选题提取失败，使用默认值');
                     topic = originTitle || '类似风格文章';
@@ -634,7 +647,20 @@ app.post('/api/baokuan/generate-complete', async (req, res) => {
                     const topicResult = await aiService.generateWithAI({
                         author: '', title: '', style: '', keywords: '', content: topicPrompt
                     });
-                    topic = (topicResult && topicResult.content) ? topicResult.content.trim() : originTitle || '类似风格文章';
+                    let rawTopic = (topicResult && topicResult.content) ? topicResult.content.trim() : originTitle || '类似风格文章';
+                    
+                    // 清理topic内容，移除URL和图片语法
+                    topic = rawTopic
+                        .replace(/!\[.*?\]\(.*?\)/g, '') // 移除markdown图片语法
+                        .replace(/https?:\/\/[^\s]+/g, '') // 移除URL
+                        .replace(/\[.*?\]\(.*?\)/g, '') // 移除链接
+                        .replace(/\s+/g, ' ') // 移除多余空格
+                        .trim();
+                        
+                    // 如果清理后为空，使用默认值
+                    if (!topic) {
+                        topic = originTitle || '类似风格文章';
+                    }
                 } catch (error) {
                     console.log('爆款选题提取失败，使用默认值');
                     topic = originTitle || '类似风格文章';
