@@ -18,17 +18,49 @@ class WechatMonitorService {
      * 搜索公众号基本信息
      */
     async searchAccount(accountName) {
+        // 先尝试桌面版搜索
+        let result = await this.searchAccountDesktop(accountName);
+        if (result.success && result.accounts.length > 0) {
+            return result;
+        }
+        
+        console.log('🔄 桌面版搜索失败，尝试移动版搜索...');
+        
+        // 尝试移动版搜索
+        result = await this.searchAccountMobile(accountName);
+        if (result.success && result.accounts.length > 0) {
+            return result;
+        }
+        
+        return result; // 返回最后一次尝试的结果
+    }
+
+    /**
+     * 桌面版搜索
+     */
+    async searchAccountDesktop(accountName) {
         for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
             try {
-                console.log(`🔍 搜索公众号: ${accountName} (尝试 ${attempt}/${this.maxRetries})`);
+                console.log(`🔍 桌面版搜索公众号: ${accountName} (尝试 ${attempt}/${this.maxRetries})`);
                 
                 const searchUrl = `${this.baseUrl}/weixin?type=1&query=${encodeURIComponent(accountName)}`;
                 console.log(`🌐 请求URL: ${searchUrl}`);
                 
+                // 先访问首页获取Cookie
+                console.log('🍪 预访问搜狗微信首页获取Cookie...');
+                try {
+                    await axios.get('https://weixin.sogou.com/', {
+                        headers: { 'User-Agent': this.userAgent },
+                        timeout: 10000
+                    });
+                } catch (e) {
+                    console.log('⚠️ 预访问失败，继续搜索...');
+                }
+
                 const response = await axios.get(searchUrl, {
                     headers: { 
                         'User-Agent': this.userAgent,
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
                         'Accept-Encoding': 'gzip, deflate, br',
                         'DNT': '1',
@@ -36,8 +68,11 @@ class WechatMonitorService {
                         'Upgrade-Insecure-Requests': '1',
                         'Sec-Fetch-Dest': 'document',
                         'Sec-Fetch-Mode': 'navigate',
-                        'Sec-Fetch-Site': 'none',
-                        'Cache-Control': 'max-age=0'
+                        'Sec-Fetch-Site': 'same-origin',
+                        'Sec-Fetch-User': '?1',
+                        'Cache-Control': 'max-age=0',
+                        'Pragma': 'no-cache',
+                        'Referer': 'https://weixin.sogou.com/'
                     },
                     timeout: 15000,
                     validateStatus: function (status) {
@@ -206,6 +241,39 @@ class WechatMonitorService {
                     console.log(`  - class包含result的元素: ${$('[class*="result"]').length}`);
                     console.log(`  - 包含"公众号"文字的元素: ${$(':contains("公众号")').length}`);
                     
+                    // 保存页面内容用于分析
+                    console.log(`🔍 完整页面HTML长度: ${response.data.length} 字符`);
+                    
+                    // 检查是否是搜索结果页面
+                    const bodyText = $('body').text();
+                    if (bodyText.includes('抱歉，没有找到') || bodyText.includes('找不到相关结果')) {
+                        return { 
+                            success: false, 
+                            error: `搜狗微信中确实没有找到"${accountName}"相关的公众号` 
+                        };
+                    }
+                    
+                    // 检查是否需要验证
+                    if (bodyText.includes('验证码') || bodyText.includes('请输入验证码')) {
+                        return { 
+                            success: false, 
+                            error: '搜狗微信要求验证码验证，请稍后重试或使用手动添加功能' 
+                        };
+                    }
+                    
+                    // 输出关键页面片段用于调试
+                    console.log(`🔍 页面关键内容:`);
+                    console.log(`  标题: ${$('title').text()}`);
+                    console.log(`  H1标签: ${$('h1').text()}`);
+                    console.log(`  主要内容区域: ${$('#main, .main, .content, .wrapper').length > 0 ? '找到' : '未找到'}`);
+                    
+                    // 分析所有可能包含公众号信息的元素
+                    console.log(`🔍 深度分析页面结构:`);
+                    const possibleContainers = ['div', 'li', 'article', 'section'].map(tag => 
+                        `${tag}包含链接的: ${$(tag).filter((i, el) => $(el).find('a').length > 0).length}`
+                    );
+                    console.log(possibleContainers.join(', '));
+                    
                     // 输出页面的HTML结构用于调试
                     console.log(`🔍 页面主要结构:`);
                     $('body').children().each((i, el) => {
@@ -214,6 +282,12 @@ class WechatMonitorService {
                         const id = $(el).attr('id') || '';
                         console.log(`  ${tagName}${id ? '#' + id : ''}${className ? '.' + className.split(' ').join('.') : ''}`);
                     });
+                    
+                    // 如果确实是搜索页面但没有结果，尝试输出更多信息
+                    if (bodyText.includes('搜索') || bodyText.includes('微信公众号')) {
+                        console.log(`📝 页面可能是搜索页面，但解析失败。页面摘要:`);
+                        console.log(`  ${bodyText.substring(0, 800)}...`);
+                    }
                     
                     return { 
                         success: false, 
@@ -236,6 +310,76 @@ class WechatMonitorService {
                 // 等待后重试
                 await this.delay(this.retryDelay * attempt);
             }
+        }
+    }
+
+    /**
+     * 移动版搜索
+     */
+    async searchAccountMobile(accountName) {
+        try {
+            console.log(`📱 移动版搜索公众号: ${accountName}`);
+            
+            const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1';
+            const searchUrl = `${this.baseUrl}/weixin?type=1&query=${encodeURIComponent(accountName)}`;
+            
+            const response = await axios.get(searchUrl, {
+                headers: { 
+                    'User-Agent': mobileUA,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Referer': 'https://weixin.sogou.com/'
+                },
+                timeout: 15000
+            });
+
+            console.log(`📱 移动版响应状态: ${response.status}`);
+            
+            const $ = cheerio.load(response.data);
+            const accounts = [];
+
+            // 移动版可能有不同的选择器
+            const mobileSelectors = [
+                '.results li',
+                '.wx-rb',
+                '.m-result',
+                'li[class*="result"]',
+                'div[class*="result"]'
+            ];
+
+            for (const selector of mobileSelectors) {
+                console.log(`📱 移动版尝试选择器: ${selector}, 找到 ${$(selector).length} 个元素`);
+                
+                $(selector).each((index, element) => {
+                    const $el = $(element);
+                    const name = $el.find('a').first().text().trim();
+                    const link = $el.find('a').first().attr('href');
+                    const desc = $el.text().replace(name, '').trim();
+                    
+                    console.log(`📱 移动版元素 ${index}: name="${name}", link="${link}"`);
+                    
+                    if (name && link && name.length > 1 && name.length < 50) {
+                        accounts.push({
+                            name,
+                            wechatId: '未知',
+                            description: desc || '移动版搜索结果',
+                            avatar: null,
+                            link: link.startsWith('http') ? link : this.baseUrl + link,
+                            source: 'sogou-mobile'
+                        });
+                    }
+                });
+                
+                if (accounts.length > 0) break;
+            }
+
+            console.log(`📱 移动版找到 ${accounts.length} 个公众号`);
+            return { success: true, accounts };
+
+        } catch (error) {
+            console.error('❌ 移动版搜索失败:', error.message);
+            return { success: false, error: error.message };
         }
     }
 
