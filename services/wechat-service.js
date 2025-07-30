@@ -182,7 +182,7 @@ class WechatService {
                     imageUrl: article.cover?.imageUrl?.substring(0, 50) + '...'
                 });
                 
-                thumbMediaId = await this.uploadDefaultCover(appId, appSecret, imageUrl);
+                thumbMediaId = await this.uploadDefaultCover(appId, appSecret, article);
                 console.log('✅ 封面上传成功, media_id:', thumbMediaId);
             } catch (error) {
                 console.error('❌ 封面上传失败:', error.message);
@@ -606,18 +606,42 @@ class WechatService {
     }
 
     /**
-     * 上传封面图片
+     * 上传封面图片（支持多种封面类型）
      */
-    async uploadDefaultCover(appId, appSecret, aiImageUrl = null) {
+    async uploadDefaultCover(appId, appSecret, article) {
         try {
             const token = await this.getAccessToken(appId, appSecret);
             
             let imageBuffer;
+            let filename = 'cover.jpg';
+            let contentType = 'image/jpeg';
             
-            if (aiImageUrl) {
-                // 下载AI生成的图片
-                console.log('📸 下载AI生成的图片...');
-                const imageResponse = await axios.get(aiImageUrl, {
+            // 根据封面设置选择不同的处理方式
+            if (article?.cover?.useGeneratedImage && article?.cover?.generatedImageData) {
+                // 选项3: 使用生成的CSS封面图片
+                console.log('📸 使用生成的CSS封面图片...');
+                const base64Data = article.cover.generatedImageData.replace(/^data:image\/\w+;base64,/, '');
+                imageBuffer = Buffer.from(base64Data, 'base64');
+                filename = 'generated-cover.png';
+                contentType = 'image/png';
+                console.log(`✅ CSS封面图片处理成功: ${imageBuffer.length} bytes`);
+                
+            } else if (article?.cover?.useDefaultImage) {
+                // 选项2: 使用系统默认图片
+                console.log('📸 使用系统默认封面图片...');
+                imageBuffer = await this.generateDefaultCoverBuffer();
+                console.log(`✅ 系统默认图片处理成功: ${imageBuffer.length} bytes`);
+                
+            } else if (article?.cover?.useRandomImage) {
+                // 选项1: 使用线上随机图片
+                console.log('📸 使用线上随机封面图片...');
+                imageBuffer = await this.generateOnlineCover();
+                console.log(`✅ 线上随机图片处理成功: ${imageBuffer.length} bytes`);
+                
+            } else if (article?.cover?.imageUrl) {
+                // 兼容旧逻辑：有imageUrl的情况
+                console.log('📸 下载指定封面图片...');
+                const imageResponse = await axios.get(article.cover.imageUrl, {
                     responseType: 'arraybuffer',
                     timeout: 10000,
                     headers: {
@@ -625,17 +649,18 @@ class WechatService {
                     }
                 });
                 imageBuffer = Buffer.from(imageResponse.data);
-                console.log(`✅ AI图片下载成功: ${imageBuffer.length} bytes`);
+                console.log(`✅ 指定图片下载成功: ${imageBuffer.length} bytes`);
+                
             } else {
-                // 生成默认封面图片
-                console.log('📸 生成默认封面图片...');
+                // 默认情况：使用系统默认图片
+                console.log('📸 默认使用系统封面图片...');
                 imageBuffer = await this.generateDefaultCoverBuffer();
             }
             
             const formData = new FormData();
             formData.append('media', imageBuffer, {
-                filename: 'default-cover.jpg',
-                contentType: 'image/jpeg'
+                filename: filename,
+                contentType: contentType
             });
             formData.append('type', 'thumb');
             
