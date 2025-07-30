@@ -1,31 +1,45 @@
 /**
  * 公众号监控数据存储服务
  * 管理监控账号和文章数据
+ * 使用项目现有的KV存储系统
  */
 
-const fs = require('fs').promises;
-const path = require('path');
+const Redis = require('ioredis');
 
 class MonitorStorageService {
     constructor() {
-        this.dataDir = path.join(__dirname, '..', 'data');
-        this.accountsFile = path.join(this.dataDir, 'monitor-accounts.json');
-        this.articlesFile = path.join(this.dataDir, 'monitor-articles.json');
+        this.redis = null;
+        if (process.env.REDIS_URL) {
+            this.redis = new Redis(process.env.REDIS_URL);
+            this.isRedisAvailable = true;
+            console.log('✅ 监控存储使用Redis');
+        } else {
+            this.isRedisAvailable = false;
+            console.log('⚠️ 监控存储使用内存模式');
+        }
+        
+        // 内存存储作为fallback
+        this.memoryStorage = {
+            accounts: [],
+            articles: []
+        };
+        
         this.init();
     }
 
     async init() {
         try {
-            await fs.mkdir(this.dataDir, { recursive: true });
-            
-            // 初始化账号文件
-            if (!(await this.fileExists(this.accountsFile))) {
-                await this.saveAccounts([]);
-            }
-            
-            // 初始化文章文件
-            if (!(await this.fileExists(this.articlesFile))) {
-                await this.saveArticles([]);
+            if (this.isRedisAvailable) {
+                // 初始化Redis键，如果不存在的话
+                const accountsExist = await this.redis.exists('monitor:accounts');
+                if (!accountsExist) {
+                    await this.redis.set('monitor:accounts', JSON.stringify([]));
+                }
+                
+                const articlesExist = await this.redis.exists('monitor:articles');
+                if (!articlesExist) {
+                    await this.redis.set('monitor:articles', JSON.stringify([]));
+                }
             }
             
             console.log('✅ 监控存储服务初始化完成');
@@ -34,32 +48,25 @@ class MonitorStorageService {
         }
     }
 
-    async fileExists(filePath) {
-        try {
-            await fs.access(filePath);
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
     /**
      * 保存监控账号列表
      */
     async saveAccounts(accounts) {
         try {
-            const data = {
-                accounts: accounts.map(account => ({
-                    ...account,
-                    id: account.id || this.generateId(),
-                    addedAt: account.addedAt || new Date().toISOString(),
-                    lastChecked: account.lastChecked || null,
-                    status: account.status || 'active'
-                })),
-                updatedAt: new Date().toISOString()
-            };
+            const processedAccounts = accounts.map(account => ({
+                ...account,
+                id: account.id || this.generateId(),
+                addedAt: account.addedAt || new Date().toISOString(),
+                lastChecked: account.lastChecked || null,
+                status: account.status || 'active'
+            }));
             
-            await fs.writeFile(this.accountsFile, JSON.stringify(data, null, 2), 'utf8');
+            if (this.isRedisAvailable) {
+                await this.redis.set('monitor:accounts', JSON.stringify(processedAccounts));
+            } else {
+                this.memoryStorage.accounts = processedAccounts;
+            }
+            
             return { success: true };
         } catch (error) {
             console.error('❌ 保存监控账号失败:', error);
@@ -72,12 +79,19 @@ class MonitorStorageService {
      */
     async getAccounts() {
         try {
-            const data = await fs.readFile(this.accountsFile, 'utf8');
-            const parsed = JSON.parse(data);
-            return { success: true, accounts: parsed.accounts || [] };
+            let accounts = [];
+            
+            if (this.isRedisAvailable) {
+                const data = await this.redis.get('monitor:accounts');
+                accounts = data ? JSON.parse(data) : [];
+            } else {
+                accounts = this.memoryStorage.accounts;
+            }
+            
+            return { success: true, accounts };
         } catch (error) {
             console.error('❌ 获取监控账号失败:', error);
-            return { success: true, accounts: [] }; // 文件不存在时返回空数组
+            return { success: true, accounts: [] };
         }
     }
 
@@ -172,12 +186,12 @@ class MonitorStorageService {
      */
     async saveArticles(allArticles) {
         try {
-            const data = {
-                articles: allArticles,
-                updatedAt: new Date().toISOString()
-            };
+            if (this.isRedisAvailable) {
+                await this.redis.set('monitor:articles', JSON.stringify(allArticles));
+            } else {
+                this.memoryStorage.articles = allArticles;
+            }
             
-            await fs.writeFile(this.articlesFile, JSON.stringify(data, null, 2), 'utf8');
             return { success: true };
         } catch (error) {
             console.error('❌ 保存文章失败:', error);
@@ -190,10 +204,18 @@ class MonitorStorageService {
      */
     async getArticles() {
         try {
-            const data = await fs.readFile(this.articlesFile, 'utf8');
-            const parsed = JSON.parse(data);
-            return { success: true, articles: parsed.articles || [] };
+            let articles = [];
+            
+            if (this.isRedisAvailable) {
+                const data = await this.redis.get('monitor:articles');
+                articles = data ? JSON.parse(data) : [];
+            } else {
+                articles = this.memoryStorage.articles;
+            }
+            
+            return { success: true, articles };
         } catch (error) {
+            console.error('❌ 获取文章失败:', error);
             return { success: true, articles: [] };
         }
     }

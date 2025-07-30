@@ -9,54 +9,132 @@ const cheerio = require('cheerio');
 class WechatMonitorService {
     constructor() {
         this.baseUrl = 'https://weixin.sogou.com';
-        this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-        this.retryDelay = 2000; // 请求间延迟
+        this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        this.retryDelay = 3000; // 请求间延迟
+        this.maxRetries = 2; // 最大重试次数
     }
 
     /**
      * 搜索公众号基本信息
      */
     async searchAccount(accountName) {
-        try {
-            console.log(`🔍 搜索公众号: ${accountName}`);
-            
-            const searchUrl = `${this.baseUrl}/weixin?type=1&query=${encodeURIComponent(accountName)}`;
-            
-            const response = await axios.get(searchUrl, {
-                headers: { 'User-Agent': this.userAgent },
-                timeout: 10000
-            });
+        for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+            try {
+                console.log(`🔍 搜索公众号: ${accountName} (尝试 ${attempt}/${this.maxRetries})`);
+                
+                const searchUrl = `${this.baseUrl}/weixin?type=1&query=${encodeURIComponent(accountName)}`;
+                console.log(`🌐 请求URL: ${searchUrl}`);
+                
+                const response = await axios.get(searchUrl, {
+                    headers: { 
+                        'User-Agent': this.userAgent,
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'DNT': '1',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-Site': 'none',
+                        'Cache-Control': 'max-age=0'
+                    },
+                    timeout: 15000,
+                    validateStatus: function (status) {
+                        return status < 500; // 接受400-499的状态码
+                    }
+                });
 
-            const $ = cheerio.load(response.data);
-            const accounts = [];
-
-            // 解析搜索结果
-            $('.results .result').each((index, element) => {
-                const $el = $(element);
-                const name = $el.find('h3 a').text().trim();
-                const wechatId = $el.find('.info label').text().replace('微信号：', '').trim();
-                const description = $el.find('.info dd').text().trim();
-                const avatar = $el.find('.img-box img').attr('src');
-                const link = $el.find('h3 a').attr('href');
-
-                if (name && link) {
-                    accounts.push({
-                        name,
-                        wechatId,
-                        description,
-                        avatar,
-                        link: this.baseUrl + link,
-                        source: 'sogou'
-                    });
+                console.log(`📡 响应状态: ${response.status}`);
+                
+                if (response.status === 403 || response.status === 429) {
+                    console.log(`⚠️ 被限制访问 (${response.status})，等待后重试...`);
+                    if (attempt < this.maxRetries) {
+                        await this.delay(this.retryDelay * attempt);
+                        continue;
+                    }
+                    return { 
+                        success: false, 
+                        error: `访问被限制 (${response.status})，请稍后再试` 
+                    };
                 }
-            });
 
-            console.log(`✅ 找到 ${accounts.length} 个公众号`);
-            return { success: true, accounts };
+                const $ = cheerio.load(response.data);
+                const accounts = [];
 
-        } catch (error) {
-            console.error('❌ 搜索公众号失败:', error.message);
-            return { success: false, error: error.message };
+                // 检查是否有验证码或其他阻断页面
+                if ($('title').text().includes('验证') || $('body').text().includes('验证码')) {
+                    console.log('⚠️ 遇到验证码页面');
+                    return { 
+                        success: false, 
+                        error: '遇到验证码限制，请稍后再试' 
+                    };
+                }
+
+                // 解析搜索结果 - 尝试多种选择器
+                const resultSelectors = [
+                    '.results .result',
+                    '.result',
+                    'li[id^="sogou_vr"]',
+                    '.news-box'
+                ];
+
+                let foundResults = false;
+                for (const selector of resultSelectors) {
+                    $(selector).each((index, element) => {
+                        const $el = $(element);
+                        let name = $el.find('h3 a').text().trim() || $el.find('.tit a').text().trim();
+                        let wechatId = $el.find('.info label').text().replace('微信号：', '').trim();
+                        let description = $el.find('.info dd').text().trim() || $el.find('.txt-info').text().trim();
+                        let avatar = $el.find('.img-box img').attr('src') || $el.find('img').attr('src');
+                        let link = $el.find('h3 a').attr('href') || $el.find('.tit a').attr('href');
+
+                        if (name && link) {
+                            foundResults = true;
+                            // 处理相对链接
+                            if (link.startsWith('/')) {
+                                link = this.baseUrl + link;
+                            }
+                            
+                            accounts.push({
+                                name,
+                                wechatId,
+                                description,
+                                avatar,
+                                link,
+                                source: 'sogou'
+                            });
+                        }
+                    });
+                    
+                    if (foundResults) break;
+                }
+
+                console.log(`✅ 找到 ${accounts.length} 个公众号`);
+                
+                if (accounts.length === 0) {
+                    console.log(`📄 页面内容预览: ${$('body').text().substring(0, 200)}...`);
+                    return { 
+                        success: false, 
+                        error: `未找到"${accountName}"相关的公众号，请尝试其他关键词` 
+                    };
+                }
+                
+                return { success: true, accounts };
+
+            } catch (error) {
+                console.error(`❌ 搜索公众号失败 (尝试 ${attempt}):`, error.message);
+                
+                if (attempt === this.maxRetries) {
+                    return { 
+                        success: false, 
+                        error: `搜索失败: ${error.message}` 
+                    };
+                }
+                
+                // 等待后重试
+                await this.delay(this.retryDelay * attempt);
+            }
         }
     }
 
