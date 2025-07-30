@@ -200,8 +200,8 @@ class AIService {
             const [articleResult, titleResult, coverResult] = await Promise.allSettled([
                 this.generateArticleContent({ author, title, style, keywords, content, customPrompt }),
                 this.titleGenerator.generateMultipleTitles(author, title, style, 3),
-                // 禁用AI图片生成，使用默认封面
-                Promise.resolve({ success: true, useDefault: true })
+                // 使用智能封面生成系统
+                this.coverGenerator.generateWebCover(author, title, style)
             ]);
             
             // 处理封面结果
