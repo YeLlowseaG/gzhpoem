@@ -25,9 +25,12 @@ class WechatMonitorService {
         }
         
         console.log('🔄 桌面版搜索失败，尝试移动版搜索...');
+        console.log(`🔄 桌面版结果: success=${result.success}, accounts=${result.accounts?.length || 0}`);
         
         // 尝试移动版搜索
         result = await this.searchAccountMobile(accountName);
+        console.log(`📱 移动版结果: success=${result.success}, accounts=${result.accounts?.length || 0}`);
+        
         if (result.success && result.accounts.length > 0) {
             return result;
         }
@@ -83,6 +86,9 @@ class WechatMonitorService {
                 console.log(`📡 响应状态: ${response.status}`);
                 console.log(`📡 响应头:`, JSON.stringify(response.headers, null, 2));
                 console.log(`📄 页面标题: ${cheerio.load(response.data)('title').text()}`);
+                
+                // 输出完整页面内容用于调试（前1000字符）
+                console.log(`📄 页面内容片段: ${response.data.substring(0, 1000)}...`);
                 
                 if (response.status === 403 || response.status === 429) {
                     console.log(`⚠️ 被限制访问 (${response.status})，等待后重试...`);
@@ -207,13 +213,19 @@ class WechatMonitorService {
                     
                     // 最后尝试：分析所有包含链接的元素
                     console.log(`🔧 最后尝试：分析所有可能的公众号链接...`);
+                    console.log(`🔗 页面中所有链接分析:`);
                     $('a').each((index, element) => {
                         const $a = $(element);
                         const href = $a.attr('href');
                         const text = $a.text().trim();
                         
+                        // 输出所有链接用于调试
+                        if (index < 20) { // 只输出前20个链接避免日志过长
+                            console.log(`  链接 ${index}: "${text}" -> ${href}`);
+                        }
+                        
                         // 如果链接指向公众号详情页或文章页
-                        if (href && (href.includes('mp.weixin.qq.com') || href.includes('profile'))) {
+                        if (href && (href.includes('mp.weixin.qq.com') || href.includes('profile') || href.includes('gzh'))) {
                             console.log(`🔗 找到可能的公众号链接: "${text}" -> ${href}`);
                             
                             if (text && text.length > 1 && text.length < 50) {
@@ -289,6 +301,18 @@ class WechatMonitorService {
                         console.log(`  ${bodyText.substring(0, 800)}...`);
                     }
                     
+                    // 输出页面中包含关键词的文本片段
+                    console.log(`🔎 搜索关键词相关的页面内容:`);
+                    const searchKeywords = [accountName, '公众号', '微信号', '认证'];
+                    searchKeywords.forEach(keyword => {
+                        const index = bodyText.indexOf(keyword);
+                        if (index !== -1) {
+                            const start = Math.max(0, index - 50);
+                            const end = Math.min(bodyText.length, index + 100);
+                            console.log(`  包含"${keyword}": ...${bodyText.substring(start, end)}...`);
+                        }
+                    });
+                    
                     return { 
                         success: false, 
                         error: `未找到"${accountName}"相关的公众号。建议：1) 使用手动添加功能 2) 尝试其他关键词 3) 该账号可能未被搜狗收录` 
@@ -335,6 +359,8 @@ class WechatMonitorService {
             });
 
             console.log(`📱 移动版响应状态: ${response.status}`);
+            console.log(`📱 移动版页面标题: ${cheerio.load(response.data)('title').text()}`);
+            console.log(`📱 移动版页面内容片段: ${response.data.substring(0, 1000)}...`);
             
             const $ = cheerio.load(response.data);
             const accounts = [];
