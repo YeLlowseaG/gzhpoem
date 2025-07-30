@@ -601,6 +601,26 @@ class PoemApp {
                     </div>
                 </div>`;
             }
+            
+            // 添加封面选择选项
+            displayContent += '<div class="cover-options">';
+            displayContent += '<h4>📋 选择封面类型：</h4>';
+            displayContent += '<div class="cover-option-group">';
+            displayContent += `
+                <label class="cover-option">
+                    <input type="radio" name="coverType" value="random" checked>
+                    <span>1. 线上随机图片</span>
+                </label>
+                <label class="cover-option">
+                    <input type="radio" name="coverType" value="default">
+                    <span>2. 系统默认图片 (cover-1.jpg/cover-2.jpg)</span>
+                </label>
+                <label class="cover-option">
+                    <input type="radio" name="coverType" value="generated">
+                    <span>3. 生成的CSS封面图片 ⭐</span>
+                </label>
+            `;
+            displayContent += '</div></div>';
             displayContent += '</div><hr>';
         }
         
@@ -769,6 +789,50 @@ class PoemApp {
         };
     }
 
+    /**
+     * 获取选中的封面类型
+     */
+    getSelectedCoverType() {
+        const selected = document.querySelector('input[name="coverType"]:checked');
+        return selected ? selected.value : 'random';
+    }
+
+    /**
+     * 将CSS封面转换为图片
+     */
+    async convertCSSCoverToImage() {
+        const coverContainer = document.querySelector('.cover-preview-container');
+        if (!coverContainer) {
+            throw new Error('封面容器未找到');
+        }
+
+        // 动态引入html2canvas
+        if (!window.html2canvas) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            document.head.appendChild(script);
+            
+            await new Promise((resolve, reject) => {
+                script.onload = resolve;
+                script.onerror = reject;
+            });
+        }
+
+        try {
+            const canvas = await html2canvas(coverContainer, {
+                backgroundColor: null,
+                scale: 2, // 提高清晰度
+                useCORS: true,
+                allowTaint: true
+            });
+            
+            return canvas.toDataURL('image/png');
+        } catch (error) {
+            console.error('转换封面为图片失败:', error);
+            throw error;
+        }
+    }
+
     selectTitle(title) {
         this.selectedTitle = title;
         
@@ -923,11 +987,34 @@ class PoemApp {
                 articleToUpload = await this.saveArticleBeforeUpload();
             }
             
+            // 获取选中的封面类型
+            const coverType = this.getSelectedCoverType();
+            let coverData = null;
+            
+            // 根据封面类型处理封面数据
+            if (coverType === 'generated') {
+                try {
+                    const generatedImage = await this.convertCSSCoverToImage();
+                    coverData = {
+                        type: 'generated',
+                        imageData: generatedImage
+                    };
+                    console.log('✅ CSS封面转换成功');
+                } catch (error) {
+                    console.error('❌ CSS封面转换失败:', error);
+                    this.showToast('warning', 'CSS封面转换失败，将使用默认封面');
+                    coverData = { type: 'default' };
+                }
+            } else {
+                coverData = { type: coverType };
+            }
+
             // 构建上传数据
             const uploadData = {
                 articleId: articleToUpload.id,
                 selectedTitle: this.selectedTitle || null,
-                article: articleToUpload // 传递完整的文章数据
+                article: articleToUpload, // 传递完整的文章数据
+                coverData: coverData // 添加封面数据
             };
             
             console.log('上传数据:', uploadData);

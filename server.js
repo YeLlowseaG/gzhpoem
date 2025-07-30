@@ -864,7 +864,7 @@ app.post('/api/wechat/test', async (req, res) => {
 // 上传完整内容包到草稿箱
 app.post('/api/wechat/upload', async (req, res) => {
     try {
-        const { articleId, selectedTitle, article } = req.body;
+        const { articleId, selectedTitle, article, coverData } = req.body;
         
         // 使用环境变量中的微信配置
         const appId = process.env.WECHAT_APP_ID;
@@ -913,6 +913,31 @@ app.post('/api/wechat/upload', async (req, res) => {
                 .trim();
         }
         
+        // 处理封面数据
+        if (coverData) {
+            if (coverData.type === 'generated' && coverData.imageData) {
+                // 将base64图片数据添加到文章数据中
+                articleData.cover = {
+                    ...articleData.cover,
+                    generatedImageData: coverData.imageData,
+                    useGeneratedImage: true
+                };
+                console.log('✅ 使用生成的CSS封面图片');
+            } else if (coverData.type === 'default') {
+                articleData.cover = {
+                    ...articleData.cover,
+                    useDefaultImage: true
+                };
+                console.log('✅ 使用系统默认封面图片');
+            } else if (coverData.type === 'random') {
+                articleData.cover = {
+                    ...articleData.cover,
+                    useRandomImage: true
+                };
+                console.log('✅ 使用线上随机封面图片');
+            }
+        }
+
         // 上传到微信（使用清理后的标题）
         const result = await wechatService.uploadToDraft(articleData, appId, appSecret, cleanedTitle);
         

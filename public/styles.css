@@ -1,6 +1,58 @@
 /* 最美诗词 - 重构版样式 */
 /* 专注于个人使用的简洁美观界面 */
 
+/* 封面选择选项样式 */
+.cover-options {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.cover-options h4 {
+    margin-bottom: 12px;
+    color: #495057;
+    font-size: 16px;
+}
+
+.cover-option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cover-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cover-option:hover {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.cover-option input[type="radio"] {
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.cover-option input[type="radio"]:checked + span {
+    color: #2196f3;
+    font-weight: 500;
+}
+
+.cover-option span {
+    font-size: 14px;
+    color: #495057;
+}
+
 :root {
     --primary-color: #667eea;
     --primary-hover: #5a67d8;
