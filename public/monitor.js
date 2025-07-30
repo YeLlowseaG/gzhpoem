@@ -427,7 +427,48 @@ class WechatMonitor {
     closeAddAccountModal() {
         document.getElementById('addAccountModal').style.display = 'none';
         document.getElementById('searchAccountInput').value = '';
+        document.getElementById('manualAccountName').value = '';
+        document.getElementById('manualAccountId').value = '';
+        document.getElementById('manualAccountDesc').value = '';
         document.getElementById('searchResults').style.display = 'none';
+    }
+
+    async addManualAccount() {
+        const name = document.getElementById('manualAccountName').value.trim();
+        const wechatId = document.getElementById('manualAccountId').value.trim();
+        const description = document.getElementById('manualAccountDesc').value.trim();
+
+        if (!name) {
+            this.showNotification('请输入公众号名称', 'warning');
+            return;
+        }
+
+        try {
+            const accountData = {
+                name,
+                wechatId: wechatId || '未知',
+                description: description || '手动添加的监控账号',
+                avatar: null,
+                link: `https://weixin.sogou.com/weixin?type=1&query=${encodeURIComponent(name)}`, // 默认搜索链接
+                source: 'manual'
+            };
+
+            const result = await this.apiCall('/accounts', {
+                method: 'POST',
+                body: JSON.stringify(accountData)
+            });
+
+            if (result.success) {
+                this.showNotification('账号添加成功', 'success');
+                this.closeAddAccountModal();
+                await this.loadAccounts();
+                await this.loadStats();
+            } else {
+                this.showNotification(result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('添加账号失败', 'error');
+        }
     }
 
     switchTab(tabName) {
@@ -466,6 +507,10 @@ function searchAccounts() {
 
 function addAccount(accountDataStr) {
     monitor.addAccount(accountDataStr);
+}
+
+function addManualAccount() {
+    monitor.addManualAccount();
 }
 
 function removeAccount(accountId) {

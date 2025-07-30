@@ -46,6 +46,8 @@ class WechatMonitorService {
                 });
 
                 console.log(`📡 响应状态: ${response.status}`);
+                console.log(`📡 响应头:`, JSON.stringify(response.headers, null, 2));
+                console.log(`📄 页面标题: ${cheerio.load(response.data)('title').text()}`);
                 
                 if (response.status === 403 || response.status === 429) {
                     console.log(`⚠️ 被限制访问 (${response.status})，等待后重试...`);
@@ -113,10 +115,19 @@ class WechatMonitorService {
                 console.log(`✅ 找到 ${accounts.length} 个公众号`);
                 
                 if (accounts.length === 0) {
-                    console.log(`📄 页面内容预览: ${$('body').text().substring(0, 200)}...`);
+                    console.log(`📄 页面内容预览: ${$('body').text().substring(0, 500)}...`);
+                    console.log(`🔍 尝试的选择器结果数量:`, resultSelectors.map(sel => `${sel}: ${$(sel).length}`));
+                    
+                    // 尝试其他可能的结构
+                    console.log(`📊 页面统计:`);
+                    console.log(`  - 所有链接: ${$('a').length}`);
+                    console.log(`  - 所有图片: ${$('img').length}`);
+                    console.log(`  - class包含result的元素: ${$('[class*="result"]').length}`);
+                    console.log(`  - 包含"公众号"文字的元素: ${$(':contains("公众号")').length}`);
+                    
                     return { 
                         success: false, 
-                        error: `未找到"${accountName}"相关的公众号，请尝试其他关键词` 
+                        error: `未找到"${accountName}"相关的公众号，请尝试其他关键词。可能原因：1) 搜狗反爬限制 2) 账号名称不准确 3) 账号未被搜狗收录` 
                     };
                 }
                 
