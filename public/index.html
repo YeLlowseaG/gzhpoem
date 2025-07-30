@@ -389,10 +389,17 @@
                         <!-- 诗词赏析提示词 -->
                         <div id="poetryPrompt" class="prompt-tab-content active">
                             <div class="form-group">
-                                <label for="poetryPromptTemplate">诗词赏析提示词模板</label>
-                                <textarea id="poetryPromptTemplate" rows="15" placeholder="诗词赏析的AI提示词模板..."></textarea>
+                                <label for="poetryStructuredTemplate">结构化学术风格提示词</label>
+                                <textarea id="poetryStructuredTemplate" rows="12" placeholder="结构化学术风格的AI提示词模板..."></textarea>
                                 <small>使用变量: {author}, {title}, {style}, {keywords}, {content}</small>
                             </div>
+                            
+                            <div class="form-group">
+                                <label for="poetryNarrativeTemplate">自然流畅叙事风格提示词</label>
+                                <textarea id="poetryNarrativeTemplate" rows="12" placeholder="自然流畅叙事风格的AI提示词模板..."></textarea>
+                                <small>使用变量: {author}, {title}, {style}, {keywords}, {content}</small>
+                            </div>
+                            
                             <div class="prompt-actions">
                                 <button class="btn btn-outline btn-sm" onclick="resetPoetryPrompt()">
                                     🔄 恢复默认

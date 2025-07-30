@@ -315,10 +315,16 @@ class PoemApp {
     }
 
     updatePromptTextareas() {
-        // 更新诗词赏析提示词
-        const poetryTextarea = document.getElementById('poetryPromptTemplate');
-        if (poetryTextarea) {
-            poetryTextarea.value = this.prompts.poetry;
+        // 更新诗词赏析提示词 - 结构化风格
+        const poetryStructuredTextarea = document.getElementById('poetryStructuredTemplate');
+        if (poetryStructuredTextarea) {
+            poetryStructuredTextarea.value = this.prompts.poetry_structured;
+        }
+        
+        // 更新诗词赏析提示词 - 叙事风格
+        const poetryNarrativeTextarea = document.getElementById('poetryNarrativeTemplate');
+        if (poetryNarrativeTextarea) {
+            poetryNarrativeTextarea.value = this.prompts.poetry_narrative;
         }
         
         // 更新爆款文提示词
@@ -1845,13 +1851,16 @@ function switchPromptTab(tabName) {
 }
 
 function savePoetryPrompt() {
-    const promptText = document.getElementById('poetryPromptTemplate').value.trim();
-    if (!promptText) {
-        app.showToast('error', '提示词不能为空');
+    const structuredPromptText = document.getElementById('poetryStructuredTemplate').value.trim();
+    const narrativePromptText = document.getElementById('poetryNarrativeTemplate').value.trim();
+    
+    if (!structuredPromptText || !narrativePromptText) {
+        app.showToast('error', '两个提示词都不能为空');
         return;
     }
     
-    app.prompts.poetry = promptText;
+    app.prompts.poetry_structured = structuredPromptText;
+    app.prompts.poetry_narrative = narrativePromptText;
     app.savePrompts();
     app.showToast('success', '诗词赏析提示词已保存');
 }
@@ -1859,7 +1868,8 @@ function savePoetryPrompt() {
 function resetPoetryPrompt() {
     if (confirm('确定要恢复默认的诗词赏析提示词吗？')) {
         const defaultPrompts = app.getDefaultPrompts();
-        document.getElementById('poetryPromptTemplate').value = defaultPrompts.poetry;
+        document.getElementById('poetryStructuredTemplate').value = defaultPrompts.poetry_structured;
+        document.getElementById('poetryNarrativeTemplate').value = defaultPrompts.poetry_narrative;
         app.showToast('info', '已恢复默认提示词');
     }
 }
