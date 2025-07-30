@@ -78,20 +78,69 @@ class WechatMonitorService {
                     '.results .result',
                     '.result',
                     'li[id^="sogou_vr"]',
-                    '.news-box'
+                    '.news-box',
+                    '.news-list2 li',
+                    '.wx-rb',
+                    'ul li',
+                    '[id*="result"]'
                 ];
 
                 let foundResults = false;
                 for (const selector of resultSelectors) {
+                    console.log(`🔍 正在尝试选择器: ${selector}, 找到 ${$(selector).length} 个元素`);
+                    
                     $(selector).each((index, element) => {
                         const $el = $(element);
-                        let name = $el.find('h3 a').text().trim() || $el.find('.tit a').text().trim();
-                        let wechatId = $el.find('.info label').text().replace('微信号：', '').trim();
-                        let description = $el.find('.info dd').text().trim() || $el.find('.txt-info').text().trim();
-                        let avatar = $el.find('.img-box img').attr('src') || $el.find('img').attr('src');
-                        let link = $el.find('h3 a').attr('href') || $el.find('.tit a').attr('href');
-
-                        if (name && link) {
+                        
+                        // 尝试多种方式提取信息
+                        const nameSelectors = ['h3 a', '.tit a', 'a[target="_blank"]', 'dt a', '.wx-rb3 a'];
+                        const linkSelectors = ['h3 a', '.tit a', 'a[target="_blank"]', 'dt a', '.wx-rb3 a'];
+                        const descSelectors = ['.info dd', '.txt-info', '.s-p', 'dd', '.wx-rb4'];
+                        const wechatIdSelectors = ['.info label', '.s-p'];
+                        const avatarSelectors = ['.img-box img', 'img', '.wx-rb2 img'];
+                        
+                        let name = '', link = '', description = '', wechatId = '', avatar = '';
+                        
+                        // 提取标题和链接
+                        for (const sel of nameSelectors) {
+                            const element = $el.find(sel).first();
+                            if (element.length) {
+                                name = element.text().trim();
+                                link = element.attr('href');
+                                if (name && link) break;
+                            }
+                        }
+                        
+                        // 提取描述
+                        for (const sel of descSelectors) {
+                            const desc = $el.find(sel).text().trim();
+                            if (desc && !desc.includes('微信号')) {
+                                description = desc;
+                                break;
+                            }
+                        }
+                        
+                        // 提取微信号
+                        for (const sel of wechatIdSelectors) {
+                            const id = $el.find(sel).text().replace(/微信号[：:]\s*/, '').trim();
+                            if (id && id !== description) {
+                                wechatId = id;
+                                break;
+                            }
+                        }
+                        
+                        // 提取头像
+                        for (const sel of avatarSelectors) {
+                            const img = $el.find(sel).attr('src');
+                            if (img) {
+                                avatar = img;
+                                break;
+                            }
+                        }
+                        
+                        console.log(`📄 元素 ${index}: name="${name}", link="${link}", desc="${description}"`);
+                        
+                        if (name && link && name.length > 1) {
                             foundResults = true;
                             // 处理相对链接
                             if (link.startsWith('/')) {
@@ -100,8 +149,8 @@ class WechatMonitorService {
                             
                             accounts.push({
                                 name,
-                                wechatId,
-                                description,
+                                wechatId: wechatId || '未知',
+                                description: description || '暂无描述',
                                 avatar,
                                 link,
                                 source: 'sogou'
@@ -109,7 +158,10 @@ class WechatMonitorService {
                         }
                     });
                     
-                    if (foundResults) break;
+                    if (foundResults) {
+                        console.log(`✅ 选择器 ${selector} 找到了结果`);
+                        break;
+                    }
                 }
 
                 console.log(`✅ 找到 ${accounts.length} 个公众号`);
@@ -118,6 +170,35 @@ class WechatMonitorService {
                     console.log(`📄 页面内容预览: ${$('body').text().substring(0, 500)}...`);
                     console.log(`🔍 尝试的选择器结果数量:`, resultSelectors.map(sel => `${sel}: ${$(sel).length}`));
                     
+                    // 最后尝试：分析所有包含链接的元素
+                    console.log(`🔧 最后尝试：分析所有可能的公众号链接...`);
+                    $('a').each((index, element) => {
+                        const $a = $(element);
+                        const href = $a.attr('href');
+                        const text = $a.text().trim();
+                        
+                        // 如果链接指向公众号详情页或文章页
+                        if (href && (href.includes('mp.weixin.qq.com') || href.includes('profile'))) {
+                            console.log(`🔗 找到可能的公众号链接: "${text}" -> ${href}`);
+                            
+                            if (text && text.length > 1 && text.length < 50) {
+                                accounts.push({
+                                    name: text,
+                                    wechatId: '未知',
+                                    description: '通过链接分析获得',
+                                    avatar: null,
+                                    link: href.startsWith('http') ? href : this.baseUrl + href,
+                                    source: 'sogou-fallback'
+                                });
+                            }
+                        }
+                    });
+                    
+                    if (accounts.length > 0) {
+                        console.log(`🎉 通过备用方法找到 ${accounts.length} 个公众号`);
+                        return { success: true, accounts };
+                    }
+                    
                     // 尝试其他可能的结构
                     console.log(`📊 页面统计:`);
                     console.log(`  - 所有链接: ${$('a').length}`);
@@ -125,9 +206,18 @@ class WechatMonitorService {
                     console.log(`  - class包含result的元素: ${$('[class*="result"]').length}`);
                     console.log(`  - 包含"公众号"文字的元素: ${$(':contains("公众号")').length}`);
                     
+                    // 输出页面的HTML结构用于调试
+                    console.log(`🔍 页面主要结构:`);
+                    $('body').children().each((i, el) => {
+                        const tagName = $(el).prop('tagName');
+                        const className = $(el).attr('class') || '';
+                        const id = $(el).attr('id') || '';
+                        console.log(`  ${tagName}${id ? '#' + id : ''}${className ? '.' + className.split(' ').join('.') : ''}`);
+                    });
+                    
                     return { 
                         success: false, 
-                        error: `未找到"${accountName}"相关的公众号，请尝试其他关键词。可能原因：1) 搜狗反爬限制 2) 账号名称不准确 3) 账号未被搜狗收录` 
+                        error: `未找到"${accountName}"相关的公众号。建议：1) 使用手动添加功能 2) 尝试其他关键词 3) 该账号可能未被搜狗收录` 
                     };
                 }
                 
