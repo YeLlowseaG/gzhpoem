@@ -21,6 +21,9 @@ const KVStorageService = require('./services/kv-storage-service');
 const ConfigService = require('./services/config-service');
 const SVGGenerator = require('./services/svg-generator');
 const CanvasImageGenerator = require('./services/canvas-image-generator');
+const WechatMonitorService = require('./services/wechat-monitor-service');
+const MonitorStorageService = require('./services/monitor-storage-service');
+const MonitorScheduler = require('./services/monitor-scheduler');
 
 const app = express();
 const PORT = 8080;
@@ -32,6 +35,9 @@ const storageService = new KVStorageService();
 const configService = new ConfigService();
 const svgGenerator = new SVGGenerator();
 const canvasImageGenerator = new CanvasImageGenerator();
+const wechatMonitorService = new WechatMonitorService();
+const monitorStorageService = new MonitorStorageService();
+const monitorScheduler = new MonitorScheduler(wechatMonitorService, monitorStorageService);
 
 // 中间件
 app.use(cors());
@@ -1271,6 +1277,366 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
+// ==================== 公众号监控相关接口 ====================
+
+// 搜索公众号
+app.post('/api/monitor/search-accounts', async (req, res) => {
+    try {
+        const { accountName } = req.body;
+        
+        if (!accountName) {
+            return res.status(400).json({
+                success: false,
+                error: '请输入公众号名称'
+            });
+        }
+        
+        console.log(`🔍 搜索公众号: ${accountName}`);
+        const result = await wechatMonitorService.searchAccount(accountName);
+        
+        res.json(result);
+        
+    } catch (error) {
+        console.error('搜索公众号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '搜索公众号失败',
+            message: error.message
+        });
+    }
+});
+
+// 添加监控账号
+app.post('/api/monitor/accounts', async (req, res) => {
+    try {
+        const accountData = req.body;
+        
+        if (!accountData.name || !accountData.link) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少必要的账号信息'
+            });
+        }
+        
+        console.log(`➕ 添加监控账号: ${accountData.name}`);
+        const result = await monitorStorageService.addAccount(accountData);
+        
+        res.json(result);
+        
+    } catch (error) {
+        console.error('添加监控账号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '添加监控账号失败',
+            message: error.message
+        });
+    }
+});
+
+// 获取监控账号列表
+app.get('/api/monitor/accounts', async (req, res) => {
+    try {
+        const result = await monitorStorageService.getAccounts();
+        res.json(result);
+    } catch (error) {
+        console.error('获取监控账号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取监控账号失败'
+        });
+    }
+});
+
+// 删除监控账号
+app.delete('/api/monitor/accounts/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await monitorStorageService.removeAccount(id);
+        res.json(result);
+    } catch (error) {
+        console.error('删除监控账号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '删除监控账号失败'
+        });
+    }
+});
+
+// 手动检查单个账号更新
+app.post('/api/monitor/accounts/:id/check', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // 获取账号信息
+        const { accounts } = await monitorStorageService.getAccounts();
+        const account = accounts.find(acc => acc.id === id);
+        
+        if (!account) {
+            return res.status(404).json({
+                success: false,
+                error: '账号不存在'
+            });
+        }
+        
+        console.log(`🔄 手动检查账号: ${account.name}`);
+        
+        // 获取最新文章
+        const articlesResult = await wechatMonitorService.getAccountArticles(account.link, 10);
+        
+        if (articlesResult.success) {
+            // 保存文章
+            await monitorStorageService.saveAccountArticles(id, articlesResult.articles);
+            
+            // 更新账号检查时间
+            await monitorStorageService.updateAccountLastChecked(id, articlesResult.articles);
+            
+            res.json({
+                success: true,
+                articles: articlesResult.articles,
+                message: `成功获取 ${articlesResult.articles.length} 篇文章`
+            });
+        } else {
+            res.json(articlesResult);
+        }
+        
+    } catch (error) {
+        console.error('检查账号更新失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '检查账号更新失败',
+            message: error.message
+        });
+    }
+});
+
+// 批量检查所有账号更新
+app.post('/api/monitor/check-all', async (req, res) => {
+    try {
+        const { accounts } = await monitorStorageService.getAccounts();
+        const activeAccounts = accounts.filter(acc => acc.status === 'active');
+        
+        if (activeAccounts.length === 0) {
+            return res.json({
+                success: true,
+                message: '没有活跃的监控账号',
+                results: []
+            });
+        }
+        
+        console.log(`🔄 批量检查 ${activeAccounts.length} 个账号`);
+        
+        const results = await wechatMonitorService.monitorAccounts(activeAccounts);
+        
+        // 保存所有结果
+        for (const result of results) {
+            if (result.success) {
+                await monitorStorageService.saveAccountArticles(
+                    result.account.id, 
+                    result.articles
+                );
+                await monitorStorageService.updateAccountLastChecked(
+                    result.account.id, 
+                    result.articles
+                );
+            }
+        }
+        
+        const successCount = results.filter(r => r.success).length;
+        const totalArticles = results.reduce((sum, r) => sum + (r.articles?.length || 0), 0);
+        
+        res.json({
+            success: true,
+            results,
+            summary: {
+                checkedAccounts: results.length,
+                successfulChecks: successCount,
+                totalNewArticles: totalArticles
+            },
+            message: `检查完成：${successCount}/${results.length} 个账号成功，共获取 ${totalArticles} 篇文章`
+        });
+        
+    } catch (error) {
+        console.error('批量检查失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '批量检查失败',
+            message: error.message
+        });
+    }
+});
+
+// 获取账号的文章列表
+app.get('/api/monitor/accounts/:id/articles', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { limit = 20 } = req.query;
+        
+        const result = await monitorStorageService.getAccountArticles(id, parseInt(limit));
+        res.json(result);
+        
+    } catch (error) {
+        console.error('获取账号文章失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取账号文章失败'
+        });
+    }
+});
+
+// 获取所有文章列表（用于全览）
+app.get('/api/monitor/articles', async (req, res) => {
+    try {
+        const { page = 1, limit = 50, unreadOnly = false } = req.query;
+        
+        const { articles } = await monitorStorageService.getArticles();
+        
+        let filteredArticles = articles;
+        if (unreadOnly === 'true') {
+            filteredArticles = articles.filter(art => !art.isRead);
+        }
+        
+        // 分页
+        const startIndex = (parseInt(page) - 1) * parseInt(limit);
+        const endIndex = startIndex + parseInt(limit);
+        const paginatedArticles = filteredArticles
+            .sort((a, b) => new Date(b.publishTime || b.savedAt) - new Date(a.publishTime || a.savedAt))
+            .slice(startIndex, endIndex);
+        
+        res.json({
+            success: true,
+            articles: paginatedArticles,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: filteredArticles.length,
+                totalPages: Math.ceil(filteredArticles.length / parseInt(limit))
+            }
+        });
+        
+    } catch (error) {
+        console.error('获取文章列表失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取文章列表失败'
+        });
+    }
+});
+
+// 标记文章为已读
+app.post('/api/monitor/articles/:id/read', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await monitorStorageService.markArticleAsRead(id);
+        res.json(result);
+    } catch (error) {
+        console.error('标记文章已读失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '标记文章已读失败'
+        });
+    }
+});
+
+// 获取监控统计信息
+app.get('/api/monitor/stats', async (req, res) => {
+    try {
+        const result = await monitorStorageService.getStats();
+        res.json(result);
+    } catch (error) {
+        console.error('获取监控统计失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取监控统计失败'
+        });
+    }
+});
+
+// 清理过期文章
+app.post('/api/monitor/cleanup', async (req, res) => {
+    try {
+        const { days = 30 } = req.body;
+        const result = await monitorStorageService.cleanupOldArticles(days);
+        res.json(result);
+    } catch (error) {
+        console.error('清理过期文章失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '清理过期文章失败'
+        });
+    }
+});
+
+// ==================== 定时任务相关接口 ====================
+
+// 获取定时任务状态
+app.get('/api/monitor/scheduler/status', async (req, res) => {
+    try {
+        const status = monitorScheduler.getStatus();
+        const stats = await monitorScheduler.getMonitorStats();
+        
+        res.json({
+            success: true,
+            scheduler: status,
+            stats: stats
+        });
+    } catch (error) {
+        console.error('获取定时任务状态失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取定时任务状态失败'
+        });
+    }
+});
+
+// 启动定时任务
+app.post('/api/monitor/scheduler/start', async (req, res) => {
+    try {
+        monitorScheduler.start();
+        res.json({
+            success: true,
+            message: '定时任务已启动'
+        });
+    } catch (error) {
+        console.error('启动定时任务失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '启动定时任务失败'
+        });
+    }
+});
+
+// 停止定时任务
+app.post('/api/monitor/scheduler/stop', async (req, res) => {
+    try {
+        monitorScheduler.stop();
+        res.json({
+            success: true,
+            message: '定时任务已停止'
+        });
+    } catch (error) {
+        console.error('停止定时任务失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '停止定时任务失败'
+        });
+    }
+});
+
+// 手动触发检查
+app.post('/api/monitor/scheduler/trigger', async (req, res) => {
+    try {
+        const result = await monitorScheduler.triggerManualCheck();
+        res.json(result);
+    } catch (error) {
+        console.error('手动触发检查失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '手动触发检查失败',
+            message: error.message
+        });
+    }
+});
+
 // 404 处理
 app.use((req, res) => {
     res.status(404).json({
@@ -1280,29 +1646,47 @@ app.use((req, res) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`\n🚀 诗词生成器服务启动成功!`);
     console.log(`📍 服务地址: http://localhost:${PORT}`);
     console.log(`🔧 环境: ${process.env.NODE_ENV || 'development'}`);
     console.log(`📁 数据存储: ${storageService.getDataPath()}`);
+    
+    // 启动公众号监控定时任务
+    try {
+        monitorScheduler.start();
+        console.log(`⏰ 公众号监控定时任务已启动`);
+    } catch (error) {
+        console.warn(`⚠️ 启动定时任务失败: ${error.message}`);
+    }
+    
     console.log(`\n🎯 可用接口:`);
-    console.log(`   POST /api/articles/generate  - 生成文章`);
-    console.log(`   GET  /api/articles/history   - 历史文章`);
-    console.log(`   POST /api/wechat/test        - 测试微信`);
-    console.log(`   POST /api/wechat/upload      - 上传文章`);
-    console.log(`   GET  /api/config             - 获取配置`);
-    console.log(`   GET  /api/stats              - 使用统计`);
-    console.log(`   GET  /health                 - 健康检查\n`);
+    console.log(`   POST /api/articles/generate     - 生成文章`);
+    console.log(`   GET  /api/articles/history      - 历史文章`);
+    console.log(`   POST /api/wechat/test           - 测试微信`);
+    console.log(`   POST /api/wechat/upload         - 上传文章`);
+    console.log(`   GET  /api/config                - 获取配置`);
+    console.log(`   GET  /api/stats                 - 使用统计`);
+    console.log(`   GET  /health                    - 健康检查`);
+    console.log(`\n📊 公众号监控接口:`);
+    console.log(`   GET  /monitor.html              - 监控界面`);
+    console.log(`   POST /api/monitor/search-accounts - 搜索公众号`);
+    console.log(`   GET  /api/monitor/accounts      - 监控账号列表`);
+    console.log(`   POST /api/monitor/check-all     - 批量检查更新`);
+    console.log(`   GET  /api/monitor/articles      - 最新文章列表`);
+    console.log(`   GET  /api/monitor/stats         - 监控统计\n`);
 });
 
 // 优雅关闭
 process.on('SIGTERM', () => {
     console.log('\n📤 接收到关闭信号，正在优雅关闭...');
+    monitorScheduler.stop();
     process.exit(0);
 });
 
 process.on('SIGINT', () => {
     console.log('\n📤 接收到中断信号，正在优雅关闭...');
+    monitorScheduler.stop();
     process.exit(0);
 });
 

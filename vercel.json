@@ -24,6 +24,10 @@
       "dest": "public/baokuan.html"
     },
     {
+      "src": "/monitor.html",
+      "dest": "public/monitor.html"
+    },
+    {
       "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "public/$1"
     },
