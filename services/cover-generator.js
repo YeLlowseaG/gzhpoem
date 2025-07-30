@@ -353,10 +353,14 @@ class CoverGenerator {
             const htmlCover = this.generateHTMLCover(coverDesign);
             const imageCover = await this.generateImageCover(coverDesign);
             
+            // 如果生成HTML封面，尝试获取本地兜底封面作为imageUrl
+            const fallbackImageUrl = await this.getLocalCoverImage();
+            
             return {
                 success: true,
                 design: coverDesign,
                 html: htmlCover,
+                imageUrl: fallbackImageUrl, // 添加imageUrl字段
                 image: imageCover,
                 type: 'text'
             };
