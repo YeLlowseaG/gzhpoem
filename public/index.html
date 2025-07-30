@@ -400,6 +400,12 @@
                                 <small>使用变量: {author}, {title}, {style}, {keywords}, {content}</small>
                             </div>
                             
+                            <div class="form-group">
+                                <label for="poetryTitleTemplate">诗词标题生成提示词</label>
+                                <textarea id="poetryTitleTemplate" rows="8" placeholder="标题生成的AI提示词模板..."></textarea>
+                                <small>使用变量: {author}, {title}, {style}</small>
+                            </div>
+                            
                             <div class="prompt-actions">
                                 <button class="btn btn-outline btn-sm" onclick="resetPoetryPrompt()">
                                     🔄 恢复默认

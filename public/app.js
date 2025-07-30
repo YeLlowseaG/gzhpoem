@@ -58,18 +58,18 @@ class PoemApp {
 
 每段重点突出，不要堆砌过多内容
 
-### 现代启示（250字，分3段）
-**第一段**：这首诗对现代人的核心意义（约80字）
+### 当代共鸣（250字，分3段）
+**第一段**：这首诗触动现代人的情感共鸣（约80字）
 **第二段**：联系具体的当下生活场景（约85字）
-**第三段**：给读者的具体启发或建议（约85字）
+**第三段**：给读者的人生感悟（约85字）
 
 避免空洞的大道理，要有贴近生活的例子
 
-### 精彩结尾（150字，分2段）
+### 余韵悠长（150字，分2段）
 **第一段**：回扣开头，形成呼应（约75字）
-**第二段**：用诗意语言总结精神内核（约75字）
+**第二段**：用诗意语言升华主题（约75字）
 
-给读者留下深刻印象
+让读者意犹未尽
 
 ## 写作技巧要求：
 - **语言生动**：多用比喻、排比等修辞手法
@@ -186,18 +186,18 @@ class PoemApp {
 
 每段重点突出，不要堆砌过多内容
 
-### 现代启示（250字，分3段）
-**第一段**：这首诗对现代人的核心意义（约80字）
+### 当代共鸣（250字，分3段）
+**第一段**：这首诗触动现代人的情感共鸣（约80字）
 **第二段**：联系具体的当下生活场景（约85字）
-**第三段**：给读者的具体启发或建议（约85字）
+**第三段**：给读者的人生感悟（约85字）
 
 避免空洞的大道理，要有贴近生活的例子
 
-### 精彩结尾（150字，分2段）
+### 余韵悠长（150字，分2段）
 **第一段**：回扣开头，形成呼应（约75字）
-**第二段**：用诗意语言总结精神内核（约75字）
+**第二段**：用诗意语言升华主题（约75字）
 
-给读者留下深刻印象
+让读者意犹未尽
 
 ## 写作技巧要求：
 - **语言生动**：多用比喻、排比等修辞手法
@@ -296,7 +296,18 @@ class PoemApp {
 - 确保排版美观易读
 
 请开始排版优化：`
-            }
+            },
+            
+            poetry_title: `请为{author}的《{title}》生成一个公众号爆文标题。
+
+要求：
+1. 字数控制在20-30字之间
+2. 风格：{style === 'emotional' ? '情感化，容易引起共鸣' : '文艺范，有深度'}
+3. 包含关键词：{author}、{title}
+4. 吸引眼球，提升点击率
+5. 避免过度煽情，保持文学性
+
+请直接返回标题，不要其他内容。`
         };
     }
 
@@ -326,6 +337,12 @@ class PoemApp {
         const poetryNarrativeTextarea = document.getElementById('poetryNarrativeTemplate');
         if (poetryNarrativeTextarea) {
             poetryNarrativeTextarea.value = this.prompts.poetry_narrative;
+        }
+        
+        // 更新诗词标题生成提示词
+        const poetryTitleTextarea = document.getElementById('poetryTitleTemplate');
+        if (poetryTitleTextarea) {
+            poetryTitleTextarea.value = this.prompts.poetry_title;
         }
         
         // 更新爆款文提示词
@@ -1854,14 +1871,16 @@ function switchPromptTab(tabName) {
 function savePoetryPrompt() {
     const structuredPromptText = document.getElementById('poetryStructuredTemplate').value.trim();
     const narrativePromptText = document.getElementById('poetryNarrativeTemplate').value.trim();
+    const titlePromptText = document.getElementById('poetryTitleTemplate').value.trim();
     
-    if (!structuredPromptText || !narrativePromptText) {
-        app.showToast('error', '两个提示词都不能为空');
+    if (!structuredPromptText || !narrativePromptText || !titlePromptText) {
+        app.showToast('error', '所有提示词都不能为空');
         return;
     }
     
     app.prompts.poetry_structured = structuredPromptText;
     app.prompts.poetry_narrative = narrativePromptText;
+    app.prompts.poetry_title = titlePromptText;
     app.savePrompts();
     app.showToast('success', '诗词赏析提示词已保存');
 }
@@ -1871,6 +1890,7 @@ function resetPoetryPrompt() {
         const defaultPrompts = app.getDefaultPrompts();
         document.getElementById('poetryStructuredTemplate').value = defaultPrompts.poetry_structured;
         document.getElementById('poetryNarrativeTemplate').value = defaultPrompts.poetry_narrative;
+        document.getElementById('poetryTitleTemplate').value = defaultPrompts.poetry_title;
         app.showToast('info', '已恢复默认提示词');
     }
 }
