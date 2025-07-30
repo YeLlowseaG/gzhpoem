@@ -647,59 +647,56 @@ class PoemApp {
      * 生成高级诗词风格封面样式
      */
     generatePoetryCoverStyle(author, title) {
-        // 根据诗人选择主题配色 - 高级古典中国风
+        // 你提供的高级配色方案
+        const colorPalette = [
+            '#b9bc74', '#3a480e', '#6c7926', '#f0f2d7', '#7e8c3f', '#e0e3af', '#ebe588', '#5c5420', '#8c844a',
+            '#d4b373', '#5d583d', '#ae9363', '#8f7d55', '#935832', '#a88255', '#987036', '#e3d1af', '#ebd490'
+        ];
+
+        // 随机选择颜色组合创建更好看的主题
+        const getRandomTheme = () => {
+            const shuffle = [...colorPalette].sort(() => Math.random() - 0.5);
+            return {
+                background: shuffle[0],
+                primaryColor: '#ffffff',
+                accentColor: shuffle[1],
+                borderColor: shuffle[2],
+                sealColor: shuffle[3]
+            };
+        };
+
+        // 根据诗人选择主题配色 - 更好看的设计
         const themes = {
             '李白': {
-                name: '墨蓝月白',
-                background: '#1c2951',  // 深墨蓝
-                primaryColor: '#f8f9fa', // 月白
-                accentColor: '#d4af37',  // 古金
-                sealColor: '#cc4125'     // 朱砂
+                name: '太白仙韵',
+                ...getRandomTheme()
             },
             '杜甫': {
-                name: '水墨清韵', 
-                background: '#3c4142',   // 水墨灰
-                primaryColor: '#ffffff', // 纸白
-                accentColor: '#a8a8a8',  // 银灰
-                sealColor: '#cc4125'     // 朱砂
+                name: '子美沉郁', 
+                ...getRandomTheme()
             },
             '苏轼': {
-                name: '青山如黛',
-                background: '#2f4f4f',   // 深青色
-                primaryColor: '#f5f5dc', // 米色
-                accentColor: '#daa520',  // 金色
-                sealColor: '#dc143c'     // 深红
+                name: '东坡豪情',
+                ...getRandomTheme()
             },
             '李清照': {
-                name: '素雅如兰',
-                background: '#f5f5dc',   // 米白
-                primaryColor: '#2f4f4f', // 墨绿
-                accentColor: '#8b4513',  // 赭石
-                sealColor: '#dc143c'     // 胭脂红
+                name: '易安婉约',
+                ...getRandomTheme()
             },
             '王维': {
-                name: '禅心如墨',
-                background: '#2f2f2f',   // 墨色
-                primaryColor: '#f0f0f0', // 宣纸白
-                accentColor: '#c0c0c0',  // 淡银
-                sealColor: '#b22222'     // 暗红
+                name: '摩诘禅意',
+                ...getRandomTheme()
             },
             '白居易': {
-                name: '淡泊明志',
-                background: '#f0f8ff',   // 淡青白
-                primaryColor: '#2f4f4f', // 墨青
-                accentColor: '#708090',  // 青灰
-                sealColor: '#cd5c5c'     // 淡红
+                name: '乐天淡泊',
+                ...getRandomTheme()
             }
         };
 
-        // 选择主题，默认使用墨韵主题
+        // 选择主题，默认也使用随机主题
         const theme = themes[author] || {
-            name: '墨韵古香',
-            background: '#1a1a1a',   // 纯墨色
-            primaryColor: '#ffffff', // 纯白
-            accentColor: '#d4af37',  // 古金
-            sealColor: '#cc4125'     // 朱砂
+            name: '诗韵雅致',
+            ...getRandomTheme()
         };
 
         return {
@@ -707,41 +704,45 @@ class PoemApp {
                 position: relative;
                 width: 200px; 
                 height: 280px; 
-                background: ${theme.background};
-                border-radius: 8px;
-                padding: 30px 20px; 
+                background: linear-gradient(135deg, ${theme.background} 0%, ${theme.accentColor} 100%);
+                border-radius: 16px;
+                padding: 25px; 
                 box-sizing: border-box;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+                box-shadow: 0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1);
                 overflow: hidden;
+                backdrop-filter: blur(10px);
             `,
             
             borderStyle: `
                 position: absolute;
-                top: 12px;
-                left: 12px;
-                right: 12px;
-                bottom: 12px;
-                border: 1px solid ${theme.accentColor};
-                border-radius: 4px;
-                opacity: 0.3;
+                top: 8px;
+                left: 8px;
+                right: 8px;
+                bottom: 8px;
+                border: 2px solid ${theme.borderColor};
+                border-radius: 12px;
+                opacity: 0.4;
                 pointer-events: none;
+                background: linear-gradient(45deg, transparent 49%, ${theme.borderColor}20 50%, transparent 51%);
             `,
             
             sealStyle: `
                 position: absolute;
-                top: 20px;
-                right: 20px;
-                width: 20px;
-                height: 20px;
-                background: ${theme.sealColor};
+                top: 18px;
+                right: 18px;
+                width: 28px;
+                height: 28px;
+                background: radial-gradient(circle, ${theme.sealColor} 0%, ${theme.sealColor}dd 100%);
                 color: white;
-                border-radius: 2px;
+                border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 10px;
-                font-weight: normal;
+                font-size: 12px;
+                font-weight: bold;
                 font-family: '华文行楷', serif;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                border: 2px solid rgba(255,255,255,0.2);
             `,
             
             contentStyle: `
@@ -753,38 +754,48 @@ class PoemApp {
                 align-items: center;
                 text-align: center;
                 z-index: 2;
+                background: radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%);
+                border-radius: 8px;
             `,
             
             authorStyle: `
-                font-size: 24px;
-                font-weight: normal;
+                font-size: 28px;
+                font-weight: 600;
                 color: ${theme.primaryColor};
-                margin-bottom: 20px;
+                margin-bottom: 24px;
                 font-family: '华文行楷', '楷体', serif;
-                letter-spacing: 3px;
+                letter-spacing: 4px;
+                text-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1);
+                position: relative;
             `,
             
             titleStyle: `
-                font-size: 14px;
-                color: ${theme.accentColor};
-                line-height: 1.8;
+                font-size: 15px;
+                color: ${theme.primaryColor};
+                line-height: 1.6;
                 font-family: '华文行楷', '楷体', serif;
-                font-weight: normal;
+                font-weight: 400;
                 letter-spacing: 2px;
                 max-width: 140px;
-                opacity: 0.9;
+                opacity: 0.85;
+                text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+                background: linear-gradient(45deg, ${theme.primaryColor}ee, ${theme.primaryColor}cc);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
             `,
             
             footerStyle: `
                 position: absolute;
-                bottom: 20px;
+                bottom: 16px;
                 left: 50%;
                 transform: translateX(-50%);
-                font-size: 10px;
-                color: ${theme.accentColor};
-                opacity: 0.6;
+                font-size: 11px;
+                color: ${theme.primaryColor};
+                opacity: 0.5;
                 font-family: '华文行楷', serif;
-                letter-spacing: 3px;
+                letter-spacing: 4px;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
             `
         };
     }
