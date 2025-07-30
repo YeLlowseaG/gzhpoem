@@ -704,45 +704,42 @@ class PoemApp {
                 position: relative;
                 width: 200px; 
                 height: 280px; 
-                background: linear-gradient(135deg, ${theme.background} 0%, ${theme.accentColor} 100%);
-                border-radius: 16px;
-                padding: 25px; 
+                background: ${theme.background};
+                border-radius: 12px;
+                padding: 30px; 
                 box-sizing: border-box;
-                box-shadow: 0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.15);
                 overflow: hidden;
-                backdrop-filter: blur(10px);
             `,
             
             borderStyle: `
                 position: absolute;
-                top: 8px;
-                left: 8px;
-                right: 8px;
-                bottom: 8px;
-                border: 2px solid ${theme.borderColor};
-                border-radius: 12px;
-                opacity: 0.4;
+                top: 15px;
+                left: 15px;
+                right: 15px;
+                bottom: 15px;
+                border: 1px solid ${theme.borderColor};
+                border-radius: 6px;
+                opacity: 0.5;
                 pointer-events: none;
-                background: linear-gradient(45deg, transparent 49%, ${theme.borderColor}20 50%, transparent 51%);
             `,
             
             sealStyle: `
                 position: absolute;
-                top: 18px;
-                right: 18px;
-                width: 28px;
-                height: 28px;
-                background: radial-gradient(circle, ${theme.sealColor} 0%, ${theme.sealColor}dd 100%);
+                top: 20px;
+                right: 20px;
+                width: 24px;
+                height: 24px;
+                background: ${theme.sealColor};
                 color: white;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: bold;
                 font-family: '华文行楷', serif;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                border: 2px solid rgba(255,255,255,0.2);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
             `,
             
             contentStyle: `
@@ -754,48 +751,38 @@ class PoemApp {
                 align-items: center;
                 text-align: center;
                 z-index: 2;
-                background: radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%);
-                border-radius: 8px;
             `,
             
             authorStyle: `
-                font-size: 28px;
-                font-weight: 600;
+                font-size: 26px;
+                font-weight: 500;
                 color: ${theme.primaryColor};
-                margin-bottom: 24px;
+                margin-bottom: 20px;
                 font-family: '华文行楷', '楷体', serif;
-                letter-spacing: 4px;
-                text-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1);
-                position: relative;
+                letter-spacing: 3px;
             `,
             
             titleStyle: `
-                font-size: 15px;
-                color: ${theme.primaryColor};
-                line-height: 1.6;
+                font-size: 14px;
+                color: ${theme.accentColor};
+                line-height: 1.7;
                 font-family: '华文行楷', '楷体', serif;
                 font-weight: 400;
                 letter-spacing: 2px;
-                max-width: 140px;
-                opacity: 0.85;
-                text-shadow: 0 1px 4px rgba(0,0,0,0.2);
-                background: linear-gradient(45deg, ${theme.primaryColor}ee, ${theme.primaryColor}cc);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
+                max-width: 130px;
+                opacity: 0.9;
             `,
             
             footerStyle: `
                 position: absolute;
-                bottom: 16px;
+                bottom: 18px;
                 left: 50%;
                 transform: translateX(-50%);
-                font-size: 11px;
-                color: ${theme.primaryColor};
-                opacity: 0.5;
+                font-size: 10px;
+                color: ${theme.accentColor};
+                opacity: 0.7;
                 font-family: '华文行楷', serif;
-                letter-spacing: 4px;
-                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                letter-spacing: 3px;
             `
         };
     }
