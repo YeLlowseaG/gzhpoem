@@ -37,6 +37,7 @@ const canvasImageGenerator = new CanvasImageGenerator();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // 全局错误处理
 app.use((err, req, res, next) => {
