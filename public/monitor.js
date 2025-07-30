@@ -191,23 +191,43 @@ class WechatMonitor {
             });
 
             if (result.success && result.accounts.length > 0) {
-                this.renderSearchResults(result.accounts);
-                this.showNotification(`找到 ${result.accounts.length} 个账号`, 'success');
+                this.renderSearchResults(result.accounts, result.message);
+                this.showNotification(`找到 ${result.accounts.length} 个${result.message ? '智能建议' : '搜索结果'}`, 'success');
+            } else if (result.suggestions && result.suggestions.length > 0) {
+                this.renderSearchResults(result.suggestions, '搜索失败，以下是手动添加建议');
+                this.showNotification('搜索失败，提供手动添加建议', 'warning');
             } else {
-                this.showNotification('没有找到相关账号', 'warning');
-                document.getElementById('searchResults').style.display = 'none';
+                this.showNotification(result.error || '没有找到相关账号', 'warning');
+                document.getElementById('searchResults').innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #666;">
+                        <p>${result.error || '没有找到相关账号'}</p>
+                        <p>建议使用下方的"手动添加"功能</p>
+                    </div>
+                `;
+                document.getElementById('searchResults').style.display = 'block';
             }
         } catch (error) {
             this.showNotification('搜索失败', 'error');
         }
     }
 
-    renderSearchResults(accounts) {
+    renderSearchResults(accounts, message) {
         const container = document.getElementById('searchResults');
-        const html = accounts.map(account => `
+        
+        let headerHtml = '';
+        if (message) {
+            headerHtml = `<div style="padding: 10px; background: #f0f8ff; border-bottom: 1px solid #ddd; font-weight: bold; color: #0066cc;">${message}</div>`;
+        }
+        
+        const html = headerHtml + accounts.map(account => `
             <div class="search-result-item" onclick="addAccount('${JSON.stringify(account).replace(/'/g, '&apos;')}')">
-                <div class="search-result-name">${account.name}</div>
-                <div class="search-result-desc">${account.description || '暂无描述'}</div>
+                <div class="search-result-name">
+                    ${account.name}
+                    ${account.source && account.source.includes('suggestion') ? '<span style="color: #28a745; font-size: 0.8em; margin-left: 8px;">💡 智能建议</span>' : ''}
+                </div>
+                <div class="search-result-desc">
+                    ${account.wechatId !== '未知' ? `微信号: ${account.wechatId} | ` : ''}${account.description || '暂无描述'}
+                </div>
             </div>
         `).join('');
         

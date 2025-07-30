@@ -18,30 +18,94 @@ class WechatMonitorService {
      * 搜索公众号基本信息
      */
     async searchAccount(accountName) {
-        // 先尝试桌面版搜索
-        let result = await this.searchAccountDesktop(accountName);
-        if (result.success && result.accounts.length > 0) {
-            return result;
+        console.log(`🔍 开始搜索公众号: ${accountName}`);
+        
+        // 由于搜狗微信使用JS动态加载，直接返回引导用户手动添加
+        console.log(`💡 搜狗微信已改为JS动态加载，建议使用手动添加功能`);
+        
+        // 提供一些常见公众号的预设建议
+        const suggestions = this.getAccountSuggestions(accountName);
+        if (suggestions.length > 0) {
+            console.log(`💡 找到 ${suggestions.length} 个相关建议`);
+            return { 
+                success: true, 
+                accounts: suggestions,
+                message: '基于常见公众号的智能建议'
+            };
         }
         
-        console.log('🔄 桌面版搜索失败，尝试移动版搜索...');
-        console.log(`🔄 桌面版结果: success=${result.success}, accounts=${result.accounts?.length || 0}`);
+        return { 
+            success: false, 
+            error: `搜狗微信已升级为动态加载页面，无法直接抓取。建议使用"手动添加"功能，输入: ${accountName}`,
+            suggestions: [
+                { name: accountName, wechatId: '未知', description: '手动添加建议' }
+            ]
+        };
+    }
+
+    /**
+     * 获取账号建议（基于常见公众号数据库）
+     */
+    getAccountSuggestions(accountName) {
+        const commonAccounts = {
+            '人民日报': { name: '人民日报', wechatId: 'rmrbwx', description: '人民日报官方微信' },
+            '新华社': { name: '新华社', wechatId: 'xinhuashefabu1', description: '新华社官方发布' },
+            '央视新闻': { name: '央视新闻', wechatId: 'cctvnewscenter', description: '央视新闻中心' },
+            '澎湃新闻': { name: '澎湃新闻', wechatId: 'thepapernews', description: '澎湃新闻官方' },
+            '财经': { name: '财经杂志', wechatId: 'i-caijing', description: '财经杂志官方' },
+            '36氪': { name: '36氪', wechatId: 'wow36kr', description: '36氪官方账号' },
+            '虎嗅': { name: '虎嗅网', wechatId: 'huxiu_com', description: '虎嗅网官方' },
+            '知乎': { name: '知乎', wechatId: 'zhihucom', description: '知乎官方账号' },
+            '丁香医生': { name: '丁香医生', wechatId: 'DingXiangYiSheng', description: '丁香医生健康科普' },
+            '樊登读书': { name: '樊登读书', wechatId: 'readingclub_btfx', description: '樊登读书官方' },
+            '十点读书': { name: '十点读书', wechatId: 'duhaoshu', description: '十点读书官方' },
+            '视觉志': { name: '视觉志', wechatId: 'iiidaily', description: '视觉志官方' },
+            '最美诗词': { name: '最美诗词', wechatId: 'zmsc8888', description: '最美诗词分享' },
+            '诗词': { name: '诗词中国', wechatId: 'shicizg', description: '诗词文化传播' },
+            '古诗词': { name: '古诗词', wechatId: 'gushici_xinshang', description: '古诗词赏析' }
+        };
         
-        // 尝试移动版搜索
-        result = await this.searchAccountMobile(accountName);
-        console.log(`📱 移动版结果: success=${result.success}, accounts=${result.accounts?.length || 0}`);
+        const suggestions = [];
         
-        if (result.success && result.accounts.length > 0) {
-            return result;
+        // 精确匹配
+        if (commonAccounts[accountName]) {
+            suggestions.push({
+                ...commonAccounts[accountName],
+                avatar: null,
+                link: `https://mp.weixin.qq.com/s?__biz=${commonAccounts[accountName].wechatId}`,
+                source: 'suggestion-exact'
+            });
         }
         
-        return result; // 返回最后一次尝试的结果
+        // 模糊匹配
+        Object.keys(commonAccounts).forEach(key => {
+            if (key.includes(accountName) || accountName.includes(key)) {
+                if (!suggestions.find(s => s.name === commonAccounts[key].name)) {
+                    suggestions.push({
+                        ...commonAccounts[key],
+                        avatar: null,
+                        link: `https://mp.weixin.qq.com/s?__biz=${commonAccounts[key].wechatId}`,
+                        source: 'suggestion-fuzzy'
+                    });
+                }
+            }
+        });
+        
+        return suggestions;
     }
 
     /**
      * 桌面版搜索
      */
     async searchAccountDesktop(accountName) {
+        // 先尝试直接API接口
+        const apiResult = await this.searchAccountAPI(accountName);
+        if (apiResult.success && apiResult.accounts.length > 0) {
+            return apiResult;
+        }
+        
+        console.log('🔄 API搜索失败，尝试页面搜索...');
+        
         for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
             try {
                 console.log(`🔍 桌面版搜索公众号: ${accountName} (尝试 ${attempt}/${this.maxRetries})`);
@@ -334,6 +398,74 @@ class WechatMonitorService {
                 // 等待后重试
                 await this.delay(this.retryDelay * attempt);
             }
+        }
+    }
+
+    /**
+     * 搜狗API搜索（尝试直接调用AJAX接口）
+     */
+    async searchAccountAPI(accountName) {
+        try {
+            console.log(`🔌 尝试搜狗API搜索: ${accountName}`);
+            
+            // 从页面分析发现的可能API端点
+            const apiUrls = [
+                `${this.baseUrl}/ajax?key=weixin&type=account&query=${encodeURIComponent(accountName)}`,
+                `${this.baseUrl}/weixin/api?type=1&query=${encodeURIComponent(accountName)}`,
+                `${this.baseUrl}/ajax/weixin?query=${encodeURIComponent(accountName)}&type=1`,
+            ];
+            
+            for (const apiUrl of apiUrls) {
+                try {
+                    console.log(`🔌 尝试API: ${apiUrl}`);
+                    
+                    const response = await axios.get(apiUrl, {
+                        headers: {
+                            'User-Agent': this.userAgent,
+                            'Accept': 'application/json, text/javascript, */*; q=0.01',
+                            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                            'Referer': `${this.baseUrl}/weixin?type=1&query=${encodeURIComponent(accountName)}`,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        timeout: 10000
+                    });
+                    
+                    console.log(`🔌 API响应状态: ${response.status}`);
+                    console.log(`🔌 API响应内容: ${JSON.stringify(response.data).substring(0, 500)}...`);
+                    
+                    // 尝试解析JSON响应
+                    let data = response.data;
+                    if (typeof data === 'string') {
+                        data = JSON.parse(data);
+                    }
+                    
+                    if (data && data.results) {
+                        const accounts = data.results.map(item => ({
+                            name: item.title || item.name || '',
+                            wechatId: item.wechatId || item.account || '未知',
+                            description: item.abstract || item.description || '搜狗API结果',
+                            avatar: item.headimg || item.avatar || null,
+                            link: item.url || item.link || '',
+                            source: 'sogou-api'
+                        })).filter(acc => acc.name && acc.link);
+                        
+                        if (accounts.length > 0) {
+                            console.log(`🎉 API搜索成功，找到 ${accounts.length} 个账号`);
+                            return { success: true, accounts };
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.log(`❌ API ${apiUrl} 失败: ${error.message}`);
+                    continue;
+                }
+            }
+            
+            return { success: false, error: 'API搜索无结果' };
+            
+        } catch (error) {
+            console.error('❌ API搜索失败:', error.message);
+            return { success: false, error: error.message };
         }
     }
 
