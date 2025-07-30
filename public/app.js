@@ -580,25 +580,24 @@ class PoemApp {
             if (articleData.cover.html) {
                 displayContent += `<div class="cover-preview-container">${articleData.cover.html}</div>`;
             } else {
-                // 如果HTML封面未生成，显示简单的文字封面
+                // 如果HTML封面未生成，显示高级诗词风格封面
+                const coverStyle = this.generatePoetryCoverStyle(articleData.metadata?.author, articleData.metadata?.title);
                 displayContent += `<div class="cover-preview-container">
-                    <div style="
-                        width: 200px; 
-                        height: 280px; 
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        color: white; 
-                        display: flex; 
-                        flex-direction: column; 
-                        justify-content: center; 
-                        align-items: center; 
-                        text-align: center; 
-                        border-radius: 8px; 
-                        padding: 20px; 
-                        box-sizing: border-box;
-                        font-family: '华文行楷', serif;
-                    ">
-                        <div style="font-size: 18px; margin-bottom: 10px;">${articleData.metadata?.author || '诗词'}</div>
-                        <div style="font-size: 16px; line-height: 1.5;">${articleData.metadata?.title || '经典诗词赏析'}</div>
+                    <div style="${coverStyle.containerStyle}">
+                        <!-- 装饰性边框 -->
+                        <div style="${coverStyle.borderStyle}"></div>
+                        
+                        <!-- 印章装饰 -->
+                        <div style="${coverStyle.sealStyle}">诗</div>
+                        
+                        <!-- 主要内容 -->
+                        <div style="${coverStyle.contentStyle}">
+                            <div style="${coverStyle.authorStyle}">${articleData.metadata?.author || '诗词'}</div>
+                            <div style="${coverStyle.titleStyle}">${articleData.metadata?.title || '经典诗词赏析'}</div>
+                        </div>
+                        
+                        <!-- 底部装饰 -->
+                        <div style="${coverStyle.footerStyle}">最美诗词</div>
                     </div>
                 </div>`;
             }
@@ -622,6 +621,154 @@ class PoemApp {
         
         // 保存当前选择的标题（默认第一个）
         this.selectedTitle = articleData.titles && articleData.titles.length > 0 ? articleData.titles[0] : null;
+    }
+
+    /**
+     * 生成高级诗词风格封面样式
+     */
+    generatePoetryCoverStyle(author, title) {
+        // 根据诗人选择主题配色
+        const themes = {
+            '李白': {
+                name: '月夜主题',
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #1e1b4b 100%)',
+                primaryColor: '#f8fafc',
+                accentColor: '#fbbf24',
+                sealColor: '#dc2626'
+            },
+            '杜甫': {
+                name: '水墨主题', 
+                background: 'linear-gradient(135deg, #374151 0%, #1f2937 50%, #111827 100%)',
+                primaryColor: '#f9fafb',
+                accentColor: '#6b7280',
+                sealColor: '#dc2626'
+            },
+            '苏轼': {
+                name: '江山主题',
+                background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)',
+                primaryColor: '#ecfdf5',
+                accentColor: '#fbbf24',
+                sealColor: '#dc2626'
+            },
+            '李清照': {
+                name: '花语主题',
+                background: 'linear-gradient(135deg, #7c2d12 0%, #92400e 50%, #a16207 100%)',
+                primaryColor: '#fef7cd',
+                accentColor: '#f59e0b',
+                sealColor: '#dc2626'
+            },
+            '王维': {
+                name: '禅意主题',
+                background: 'linear-gradient(135deg, #57534e 0%, #44403c 50%, #292524 100%)',
+                primaryColor: '#fafaf9',
+                accentColor: '#a8a29e',
+                sealColor: '#dc2626'
+            },
+            '白居易': {
+                name: '淡雅主题',
+                background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%)',
+                primaryColor: '#f0fdfa',
+                accentColor: '#5eead4',
+                sealColor: '#dc2626'
+            }
+        };
+
+        // 选择主题，默认使用古典主题
+        const theme = themes[author] || {
+            name: '古典主题',
+            background: 'linear-gradient(135deg, #8b5a2b 0%, #a0522d 50%, #cd853f 100%)',
+            primaryColor: '#fef7e0',
+            accentColor: '#d97706',
+            sealColor: '#dc2626'
+        };
+
+        return {
+            containerStyle: `
+                position: relative;
+                width: 200px; 
+                height: 280px; 
+                background: ${theme.background};
+                border-radius: 12px;
+                padding: 20px; 
+                box-sizing: border-box;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1);
+                overflow: hidden;
+            `,
+            
+            borderStyle: `
+                position: absolute;
+                top: 8px;
+                left: 8px;
+                right: 8px;
+                bottom: 8px;
+                border: 2px solid ${theme.accentColor};
+                border-radius: 8px;
+                opacity: 0.6;
+                pointer-events: none;
+            `,
+            
+            sealStyle: `
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                width: 24px;
+                height: 24px;
+                background: ${theme.sealColor};
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: bold;
+                font-family: '华文行楷', serif;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            `,
+            
+            contentStyle: `
+                position: relative;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                z-index: 2;
+            `,
+            
+            authorStyle: `
+                font-size: 20px;
+                font-weight: 600;
+                color: ${theme.primaryColor};
+                margin-bottom: 15px;
+                font-family: '华文行楷', '楷体', serif;
+                text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                letter-spacing: 2px;
+            `,
+            
+            titleStyle: `
+                font-size: 16px;
+                color: ${theme.accentColor};
+                line-height: 1.6;
+                font-family: '华文行楷', '楷体', serif;
+                font-weight: 500;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                letter-spacing: 1px;
+                max-width: 140px;
+            `,
+            
+            footerStyle: `
+                position: absolute;
+                bottom: 15px;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 12px;
+                color: ${theme.accentColor};
+                opacity: 0.8;
+                font-family: '华文行楷', serif;
+                letter-spacing: 2px;
+            `
+        };
     }
 
     selectTitle(title) {
