@@ -291,7 +291,12 @@ class WechatMonitor {
                 await this.loadAccounts();
                 await this.loadStats();
             } else {
-                this.showNotification(result.error, 'error');
+                // 检查是否需要微信认证
+                if (result.needAuth && result.instructions) {
+                    this.showWechatAuthModal(result.instructions, accountId);
+                } else {
+                    this.showNotification(result.error, 'error');
+                }
             }
         } catch (error) {
             this.showNotification('检查失败', 'error');
@@ -314,6 +319,27 @@ class WechatMonitor {
             }
         } catch (error) {
             this.showNotification('批量检查失败', 'error');
+        }
+    }
+
+    async checkAccountWithAuth(accountId, authKey) {
+        try {
+            this.showNotification('使用认证密钥检查中...', 'info');
+            const result = await this.apiCall(`/accounts/${accountId}/check`, {
+                method: 'POST',
+                body: JSON.stringify({ authKey })
+            });
+
+            if (result.success) {
+                this.showNotification('获取文章成功！', 'success');
+                await this.loadAccounts();
+                await this.loadStats();
+                await this.loadArticles();
+            } else {
+                this.showNotification(result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('认证检查失败', 'error');
         }
     }
 
@@ -471,6 +497,74 @@ class WechatMonitor {
         document.getElementById('searchAccountInput').focus();
     }
 
+    showWechatAuthModal(instructions, accountId) {
+        // 动态创建微信认证模态框
+        const existingModal = document.getElementById('wechatAuthModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        const modal = document.createElement('div');
+        modal.id = 'wechatAuthModal';
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <div class="modal-title">🔐 微信认证密钥获取</div>
+                </div>
+                <div style="padding: 20px;">
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="color: #28a745; margin-bottom: 10px;">📱 操作步骤：</h4>
+                        <ol style="margin: 0; padding-left: 20px;">
+                            <li style="margin-bottom: 8px;">${instructions.step1}</li>
+                            <li style="margin-bottom: 8px;">${instructions.step2}</li>
+                            <li style="margin-bottom: 8px;">${instructions.step3}</li>
+                            <li style="margin-bottom: 8px;">${instructions.step4}</li>
+                        </ol>
+                    </div>
+                    
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <p style="margin: 0; color: #856404;">
+                            <strong>📋 文章链接:</strong><br>
+                            <code style="background: #e9ecef; padding: 5px; border-radius: 4px; word-break: break-all;">${instructions.articleUrl}</code>
+                        </p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">🔑 认证密钥 (完成上述步骤后，点击自动获取)</label>
+                        <input type="text" class="form-input" id="wechatAuthKey" placeholder="认证密钥将自动填入" readonly>
+                        <button class="btn btn-primary" onclick="getWechatAuthKey('${accountId}')" style="margin-top: 10px;">
+                            🔄 自动获取密钥
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-success" onclick="submitWechatAuth('${accountId}')" disabled id="submitAuthBtn">
+                            ✅ 使用密钥获取文章
+                        </button>
+                        <button class="btn btn-secondary" onclick="closeWechatAuthModal()" style="margin-left: 10px;">
+                            取消
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 15px; font-size: 0.9em; color: #666;">
+                        <p><strong>💡 提示:</strong> ${instructions.note}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+    }
+
+    closeWechatAuthModal() {
+        const modal = document.getElementById('wechatAuthModal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
     closeAddAccountModal() {
         document.getElementById('addAccountModal').style.display = 'none';
         document.getElementById('searchAccountInput').value = '';
@@ -601,6 +695,30 @@ function openArticle(url) {
 
 function switchTab(tabName) {
     monitor.switchTab(tabName);
+}
+
+function getWechatAuthKey(accountId) {
+    // 模拟自动获取密钥（实际需要更复杂的实现）
+    const mockKey = 'mock_auth_key_' + Date.now();
+    document.getElementById('wechatAuthKey').value = mockKey;
+    document.getElementById('submitAuthBtn').disabled = false;
+    monitor.showNotification('密钥获取成功！（模拟）', 'success');
+}
+
+function submitWechatAuth(accountId) {
+    const authKey = document.getElementById('wechatAuthKey').value;
+    if (!authKey) {
+        monitor.showNotification('请先获取认证密钥', 'warning');
+        return;
+    }
+    
+    // 调用带认证密钥的检查接口
+    monitor.checkAccountWithAuth(accountId, authKey);
+    monitor.closeWechatAuthModal();
+}
+
+function closeWechatAuthModal() {
+    monitor.closeWechatAuthModal();
 }
 
 // ==================== 初始化 ====================

@@ -1366,6 +1366,7 @@ app.delete('/api/monitor/accounts/:id', async (req, res) => {
 app.post('/api/monitor/accounts/:id/check', async (req, res) => {
     try {
         const { id } = req.params;
+        const { authKey } = req.body; // 获取认证密钥
         
         // 获取账号信息
         const { accounts } = await monitorStorageService.getAccounts();
@@ -1378,10 +1379,15 @@ app.post('/api/monitor/accounts/:id/check', async (req, res) => {
             });
         }
         
-        console.log(`🔄 手动检查账号: ${account.name}`);
+        console.log(`🔄 手动检查账号: ${account.name}${authKey ? ' (使用认证密钥)' : ''}`);
         
-        // 获取最新文章
-        const articlesResult = await wechatMonitorService.getAccountArticles(account.link, 10);
+        // 获取最新文章，如果是微信文章类型且有认证密钥，则传递密钥
+        let articlesResult;
+        if (account.monitorType === 'wechat-article' && authKey) {
+            articlesResult = await wechatMonitorService.getAccountArticles(account.link, 10, account.monitorType, authKey);
+        } else {
+            articlesResult = await wechatMonitorService.getAccountArticles(account.link, 10, account.monitorType);
+        }
         
         if (articlesResult.success) {
             // 保存文章

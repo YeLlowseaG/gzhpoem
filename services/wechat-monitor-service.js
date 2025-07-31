@@ -546,7 +546,7 @@ class WechatMonitorService {
     /**
      * 根据监控类型获取文章列表
      */
-    async getAccountArticles(accountLink, maxCount = 10, monitorType = 'search') {
+    async getAccountArticles(accountLink, maxCount = 10, monitorType = 'search', authKey = null) {
         console.log(`📰 获取文章，类型: ${monitorType}, 链接: ${accountLink}`);
         
         switch (monitorType) {
@@ -555,7 +555,7 @@ class WechatMonitorService {
             case 'wechat-profile':
                 return await this.getArticlesFromWechatProfile(accountLink, maxCount);
             case 'wechat-article':
-                return await this.getArticlesFromWechatArticle(accountLink, maxCount);
+                return await this.getArticlesFromWechatArticle(accountLink, maxCount, authKey);
             case 'api':
                 return await this.getArticlesFromAPI(accountLink, maxCount);
             default:
