@@ -251,13 +251,19 @@ class ContentCollector {
             const data = await response.json();
             
             if (data.success) {
-                this.showMessage('文章收集成功！', 'success');
+                // 清除所有之前的提示
+                document.querySelectorAll('.alert').forEach(alert => alert.remove());
+                
+                this.showMessage(`✅ 文章收集成功！标题: ${data.data.title}`, 'success');
                 this.showExtractPreview(data.data);
                 document.getElementById('articleUrl').value = '';
                 document.getElementById('selectAccount').value = '';
                 await this.loadArticles();
+                
+                // 滚动到文章列表顶部
+                document.getElementById('articlesList').scrollIntoView({ behavior: 'smooth' });
             } else {
-                this.showMessage(`提取失败: ${data.error}`, 'danger');
+                this.showMessage(`❌ 提取失败: ${data.error}`, 'danger');
             }
         } catch (error) {
             console.error('提取文章失败:', error);
