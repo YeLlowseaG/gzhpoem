@@ -392,6 +392,8 @@ class WechatMonitor {
             return 'rss';
         } else if (url.includes('mp.weixin.qq.com/profile')) {
             return 'wechat-profile';
+        } else if (url.includes('mp.weixin.qq.com/s') || url.includes('__biz=')) {
+            return 'wechat-article';
         } else if (url.includes('api') || url.includes('feed')) {
             return 'api';
         } else {

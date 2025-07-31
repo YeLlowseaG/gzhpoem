@@ -5,6 +5,7 @@
 
 const axios = require('axios');
 const cheerio = require('cheerio');
+const WechatCrawlerService = require('./wechat-crawler-service');
 
 class WechatMonitorService {
     constructor() {
@@ -12,6 +13,7 @@ class WechatMonitorService {
         this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
         this.retryDelay = 3000; // 请求间延迟
         this.maxRetries = 2; // 最大重试次数
+        this.wechatCrawler = new WechatCrawlerService(); // 真实微信爬虫
     }
 
     /**
@@ -552,6 +554,8 @@ class WechatMonitorService {
                 return await this.getArticlesFromRSS(accountLink, maxCount);
             case 'wechat-profile':
                 return await this.getArticlesFromWechatProfile(accountLink, maxCount);
+            case 'wechat-article':
+                return await this.getArticlesFromWechatArticle(accountLink, maxCount);
             case 'api':
                 return await this.getArticlesFromAPI(accountLink, maxCount);
             default:
@@ -614,7 +618,47 @@ class WechatMonitorService {
     }
 
     /**
-     * 从微信公众号主页获取文章
+     * 从微信文章链接获取公众号文章（真实爬虫方法）
+     */
+    async getArticlesFromWechatArticle(articleUrl, maxCount = 10, authKey = null) {
+        try {
+            console.log(`🎯 使用真实微信爬虫获取文章: ${articleUrl}`);
+            
+            // 提取公众号信息
+            const accountInfo = this.wechatCrawler.extractAccountInfo(articleUrl);
+            if (!accountInfo.success) {
+                return { success: false, error: accountInfo.error };
+            }
+            
+            if (!authKey) {
+                // 如果没有认证密钥，返回获取密钥的指导
+                const instructions = this.wechatCrawler.generateKeyInstructions(articleUrl);
+                return {
+                    success: false,
+                    error: '需要微信认证密钥',
+                    instructions: instructions.instructions,
+                    needAuth: true
+                };
+            }
+            
+            // 使用认证密钥获取文章列表
+            const result = await this.wechatCrawler.getArticleList(accountInfo.biz, authKey, 0, maxCount);
+            
+            if (result.success) {
+                console.log(`✅ 真实爬虫获取到 ${result.articles.length} 篇文章`);
+                return result;
+            } else {
+                return { success: false, error: result.error };
+            }
+            
+        } catch (error) {
+            console.error('❌ 真实微信爬虫失败:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 从微信公众号主页获取文章（旧方法，基本无效）
      */
     async getArticlesFromWechatProfile(profileUrl, maxCount = 10) {
         try {
