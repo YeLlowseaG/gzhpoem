@@ -412,6 +412,7 @@
         <div class="tabs">
             <div class="tab active" onclick="switchTab('accounts')">📋 监控账号</div>
             <div class="tab" onclick="switchTab('articles')">📰 最新文章</div>
+            <div class="tab" onclick="switchTab('help')">❓ 使用说明</div>
         </div>
 
         <!-- 账号列表 -->
@@ -442,6 +443,81 @@
                 </div>
             </div>
         </div>
+
+        <!-- 使用说明 -->
+        <div id="help-tab" class="tab-content">
+            <div class="articles-section">
+                <div class="section-header">
+                    <div class="section-title">📚 使用说明</div>
+                </div>
+                <div style="padding: 30px; line-height: 1.8; color: #333;">
+                    <h3 style="color: #007bff; margin-bottom: 20px;">🎯 监控系统说明</h3>
+                    <p>由于搜狗微信已改为动态加载，本系统现在支持多种监控方式，让您可以有效跟踪公众号更新。</p>
+                    
+                    <h3 style="color: #007bff; margin: 30px 0 20px 0;">🔧 支持的监控方式</h3>
+                    
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="color: #28a745; margin-bottom: 15px;">1. 📡 RSS订阅 (推荐)</h4>
+                        <p><strong>示例链接：</strong></p>
+                        <code style="background: #e9ecef; padding: 8px; border-radius: 4px; display: block; margin: 10px 0;">
+                            https://rsshub.app/wechat/mp/rmrbwx
+                        </code>
+                        <p><strong>优点：</strong> 稳定可靠，实时更新，格式标准化</p>
+                        <p><strong>获取方式：</strong> 
+                            <a href="https://docs.rsshub.app/routes/new-media#wei-xin" target="_blank" style="color: #007bff;">访问RSSHub文档</a>
+                            查找对应公众号的RSS地址
+                        </p>
+                    </div>
+
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="color: #17a2b8; margin-bottom: 15px;">2. 📱 微信公众号主页</h4>
+                        <p><strong>示例链接：</strong></p>
+                        <code style="background: #e9ecef; padding: 8px; border-radius: 4px; display: block; margin: 10px 0;">
+                            https://mp.weixin.qq.com/profile?src=3&timestamp=xxx&ver=1&...
+                        </code>
+                        <p><strong>优点：</strong> 官方数据源，内容完整</p>
+                        <p><strong>缺点：</strong> 可能需要微信授权，访问频率有限制</p>
+                        <p><strong>获取方式：</strong> 在微信中打开公众号，复制分享链接</p>
+                    </div>
+
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="color: #6f42c1; margin-bottom: 15px;">3. 🔌 API接口</h4>
+                        <p><strong>示例链接：</strong></p>
+                        <code style="background: #e9ecef; padding: 8px; border-radius: 4px; display: block; margin: 10px 0;">
+                            https://api.example.com/wechat/articles?account=rmrbwx
+                        </code>
+                        <p><strong>适用场景：</strong> 第三方爬虫服务、自建API接口</p>
+                        <p><strong>要求：</strong> 返回JSON格式，包含title、link等基本字段</p>
+                    </div>
+
+                    <h3 style="color: #007bff; margin: 30px 0 20px 0;">📝 使用步骤</h3>
+                    <ol style="padding-left: 20px;">
+                        <li style="margin-bottom: 10px;">点击"➕ 添加监控"按钮</li>
+                        <li style="margin-bottom: 10px;">方式1：搜索常见公众号（使用内置智能建议）</li>
+                        <li style="margin-bottom: 10px;">方式2：手动添加，输入公众号名称和监控链接</li>
+                        <li style="margin-bottom: 10px;">系统会自动识别链接类型并采用相应的监控策略</li>
+                        <li style="margin-bottom: 10px;">点击"🔄 检查"或"🔄 全部更新"获取最新文章</li>
+                    </ol>
+
+                    <h3 style="color: #007bff; margin: 30px 0 20px 0;">💡 使用建议</h3>
+                    <ul style="padding-left: 20px;">
+                        <li style="margin-bottom: 8px;"><strong>优先使用RSS：</strong> 稳定性最好，更新频率高</li>
+                        <li style="margin-bottom: 8px;"><strong>设置合理的检查频率：</strong> 避免过于频繁的请求</li>
+                        <li style="margin-bottom: 8px;"><strong>关注监控状态：</strong> 及时处理异常账号</li>
+                        <li style="margin-bottom: 8px;"><strong>定期清理：</strong> 删除不再需要的监控账号</li>
+                    </ul>
+
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-top: 30px;">
+                        <h4 style="color: #856404; margin-bottom: 10px;">⚠️ 注意事项</h4>
+                        <ul style="padding-left: 20px; margin: 0; color: #856404;">
+                            <li>部分监控方式可能受到访问限制</li>
+                            <li>建议合理控制监控频率，避免被封IP</li>
+                            <li>RSS方式最稳定，建议优先使用</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 添加账号模态框 -->
@@ -461,9 +537,16 @@
             
             <div class="form-group">
                 <label class="form-label">方式2：手动添加</label>
-                <input type="text" class="form-input" id="manualAccountName" placeholder="公众号名称">
+                <input type="text" class="form-input" id="manualAccountName" placeholder="公众号名称（必填）">
                 <input type="text" class="form-input" id="manualAccountId" placeholder="微信号（可选）" style="margin-top: 10px;">
+                <input type="url" class="form-input" id="manualAccountUrl" placeholder="监控链接（公众号主页链接或RSS地址）" style="margin-top: 10px;">
                 <input type="text" class="form-input" id="manualAccountDesc" placeholder="描述（可选）" style="margin-top: 10px;">
+                <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9em; color: #666;">
+                    <strong>💡 支持的链接类型：</strong><br>
+                    • 公众号主页：https://mp.weixin.qq.com/profile?src=3&timestamp=xxx&...<br>
+                    • RSS订阅：https://rsshub.app/wechat/mp/xxx<br>
+                    • 其他API接口或爬虫服务地址
+                </div>
                 <button class="btn btn-success" onclick="addManualAccount()" style="margin-top: 10px;">➕ 手动添加</button>
             </div>
             

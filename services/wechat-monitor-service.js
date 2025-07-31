@@ -542,9 +542,185 @@ class WechatMonitorService {
     }
 
     /**
-     * 获取公众号最新文章列表
+     * 根据监控类型获取文章列表
      */
-    async getAccountArticles(accountLink, maxCount = 10) {
+    async getAccountArticles(accountLink, maxCount = 10, monitorType = 'search') {
+        console.log(`📰 获取文章，类型: ${monitorType}, 链接: ${accountLink}`);
+        
+        switch (monitorType) {
+            case 'rss':
+                return await this.getArticlesFromRSS(accountLink, maxCount);
+            case 'wechat-profile':
+                return await this.getArticlesFromWechatProfile(accountLink, maxCount);
+            case 'api':
+                return await this.getArticlesFromAPI(accountLink, maxCount);
+            default:
+                return await this.getArticlesFromSogou(accountLink, maxCount);
+        }
+    }
+
+    /**
+     * 从RSS获取文章
+     */
+    async getArticlesFromRSS(rssUrl, maxCount = 10) {
+        try {
+            console.log(`📡 从RSS获取文章: ${rssUrl}`);
+            
+            const response = await axios.get(rssUrl, {
+                headers: { 
+                    'User-Agent': this.userAgent,
+                    'Accept': 'application/rss+xml, application/xml, text/xml'
+                },
+                timeout: 15000
+            });
+
+            const $ = cheerio.load(response.data, { xmlMode: true });
+            const articles = [];
+
+            $('item').slice(0, maxCount).each((index, element) => {
+                const $el = $(element);
+                const title = $el.find('title').text().trim();
+                const link = $el.find('link').text().trim();
+                const description = $el.find('description').text().trim();
+                const pubDate = $el.find('pubDate').text().trim();
+                
+                if (title && link) {
+                    articles.push({
+                        title,
+                        link,
+                        summary: description.replace(/<[^>]*>/g, '').substring(0, 200) + '...',
+                        publishTime: this.parseRSSTime(pubDate),
+                        cover: this.extractImageFromDescription(description),
+                        isNew: this.isRecentArticle(this.parseRSSTime(pubDate)),
+                        source: 'rss'
+                    });
+                }
+            });
+
+            console.log(`✅ RSS获取到 ${articles.length} 篇文章`);
+            return { success: true, articles };
+
+        } catch (error) {
+            console.error('❌ RSS获取失败:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 从微信公众号主页获取文章
+     */
+    async getArticlesFromWechatProfile(profileUrl, maxCount = 10) {
+        try {
+            console.log(`📱 从微信主页获取文章: ${profileUrl}`);
+            
+            // 延迟请求，避免被封
+            await this.delay(this.retryDelay);
+            
+            const response = await axios.get(profileUrl, {
+                headers: { 
+                    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9',
+                    'Referer': 'https://mp.weixin.qq.com/'
+                },
+                timeout: 15000
+            });
+
+            const $ = cheerio.load(response.data);
+            const articles = [];
+
+            // 尝试多种选择器解析微信文章列表
+            const selectors = [
+                '.weui_msg_card_bd',
+                '.rich_media_title',
+                '.msg_item',
+                'li[data-type="1"]'
+            ];
+
+            for (const selector of selectors) {
+                $(selector).slice(0, maxCount).each((index, element) => {
+                    const $el = $(element);
+                    const title = $el.find('h4, .rich_media_title, .msg_item_title').text().trim();
+                    const link = $el.find('a').attr('href');
+                    const summary = $el.find('.msg_item_digest, .rich_media_content').text().trim();
+                    const timeText = $el.find('.msg_item_time, .rich_media_meta_text').text().trim();
+                    const cover = $el.find('img').attr('src');
+
+                    if (title && link) {
+                        articles.push({
+                            title,
+                            link: link.startsWith('http') ? link : 'https://mp.weixin.qq.com' + link,
+                            summary: summary.substring(0, 200) + (summary.length > 200 ? '...' : ''),
+                            publishTime: this.parsePublishTime(timeText),
+                            cover,
+                            isNew: this.isRecentArticle(this.parsePublishTime(timeText)),
+                            source: 'wechat-profile'
+                        });
+                    }
+                });
+                
+                if (articles.length > 0) break;
+            }
+
+            console.log(`✅ 微信主页获取到 ${articles.length} 篇文章`);
+            return { success: true, articles };
+
+        } catch (error) {
+            console.error('❌ 微信主页获取失败:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 从API接口获取文章
+     */
+    async getArticlesFromAPI(apiUrl, maxCount = 10) {
+        try {
+            console.log(`🔌 从API获取文章: ${apiUrl}`);
+            
+            const response = await axios.get(apiUrl, {
+                headers: { 
+                    'User-Agent': this.userAgent,
+                    'Accept': 'application/json, text/plain, */*'
+                },
+                timeout: 15000
+            });
+
+            let data = response.data;
+            if (typeof data === 'string') {
+                data = JSON.parse(data);
+            }
+
+            const articles = [];
+            const items = data.items || data.articles || data.data || [];
+
+            items.slice(0, maxCount).forEach(item => {
+                if (item.title && (item.link || item.url)) {
+                    articles.push({
+                        title: item.title,
+                        link: item.link || item.url,
+                        summary: (item.summary || item.description || item.content || '').substring(0, 200) + '...',
+                        publishTime: item.publishTime || item.pubDate || item.date,
+                        cover: item.cover || item.image || item.thumbnail,
+                        isNew: this.isRecentArticle(item.publishTime || item.pubDate || item.date),
+                        source: 'api'
+                    });
+                }
+            });
+
+            console.log(`✅ API获取到 ${articles.length} 篇文章`);
+            return { success: true, articles };
+
+        } catch (error) {
+            console.error('❌ API获取失败:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * 从搜狗搜索获取文章（原有方法）
+     */
+    async getArticlesFromSogou(accountLink, maxCount = 10) {
         try {
             console.log(`📰 获取公众号文章: ${accountLink}`);
             
@@ -602,9 +778,13 @@ class WechatMonitorService {
         
         for (const account of accounts) {
             try {
-                console.log(`🔄 监控公众号: ${account.name}`);
+                console.log(`🔄 监控公众号: ${account.name} (类型: ${account.monitorType || 'search'})`);
                 
-                const articlesResult = await this.getAccountArticles(account.link, 5);
+                const articlesResult = await this.getAccountArticles(
+                    account.link, 
+                    5, 
+                    account.monitorType || 'search'
+                );
                 
                 results.push({
                     account,
@@ -614,8 +794,9 @@ class WechatMonitorService {
                     checkedAt: new Date().toISOString()
                 });
 
-                // 延迟，避免请求过频
-                await this.delay(this.retryDelay);
+                // 根据监控类型调整延迟时间
+                const delay = account.monitorType === 'rss' ? 1000 : this.retryDelay;
+                await this.delay(delay);
 
             } catch (error) {
                 console.error(`❌ 监控 ${account.name} 失败:`, error.message);
@@ -708,6 +889,39 @@ class WechatMonitorService {
         const diffDays = (now - articleDate) / (1000 * 60 * 60 * 24);
         
         return diffDays <= 3; // 3天内的文章算新文章
+    }
+
+    /**
+     * 解析RSS时间格式
+     */
+    parseRSSTime(timeText) {
+        if (!timeText) return null;
+        
+        try {
+            const date = new Date(timeText);
+            if (isNaN(date.getTime())) {
+                // 尝试其他格式
+                const isoMatch = timeText.match(/(\d{4}-\d{2}-\d{2})/);
+                if (isoMatch) {
+                    return isoMatch[1];
+                }
+                return timeText;
+            }
+            return date.toISOString().split('T')[0];
+        } catch (error) {
+            console.warn('时间解析失败:', timeText);
+            return timeText;
+        }
+    }
+
+    /**
+     * 从描述中提取图片
+     */
+    extractImageFromDescription(description) {
+        if (!description) return null;
+        
+        const imgMatch = description.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+        return imgMatch ? imgMatch[1] : null;
     }
 
     /**

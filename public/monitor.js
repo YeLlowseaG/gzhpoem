@@ -374,6 +374,29 @@ class WechatMonitor {
 
     // ==================== 工具函数 ====================
 
+    isValidUrl(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    detectMonitorType(url) {
+        if (!url) return 'search';
+        
+        if (url.includes('rsshub.app') || url.includes('rss') || url.includes('.xml')) {
+            return 'rss';
+        } else if (url.includes('mp.weixin.qq.com/profile')) {
+            return 'wechat-profile';
+        } else if (url.includes('api') || url.includes('feed')) {
+            return 'api';
+        } else {
+            return 'custom';
+        }
+    }
+
     formatTime(timeStr) {
         if (!timeStr) return '未知';
         
@@ -449,6 +472,7 @@ class WechatMonitor {
         document.getElementById('searchAccountInput').value = '';
         document.getElementById('manualAccountName').value = '';
         document.getElementById('manualAccountId').value = '';
+        document.getElementById('manualAccountUrl').value = '';
         document.getElementById('manualAccountDesc').value = '';
         document.getElementById('searchResults').style.display = 'none';
     }
@@ -456,10 +480,17 @@ class WechatMonitor {
     async addManualAccount() {
         const name = document.getElementById('manualAccountName').value.trim();
         const wechatId = document.getElementById('manualAccountId').value.trim();
+        const monitorUrl = document.getElementById('manualAccountUrl').value.trim();
         const description = document.getElementById('manualAccountDesc').value.trim();
 
         if (!name) {
             this.showNotification('请输入公众号名称', 'warning');
+            return;
+        }
+
+        // 验证URL格式（如果提供了）
+        if (monitorUrl && !this.isValidUrl(monitorUrl)) {
+            this.showNotification('请输入有效的监控链接', 'warning');
             return;
         }
 
@@ -469,8 +500,9 @@ class WechatMonitor {
                 wechatId: wechatId || '未知',
                 description: description || '手动添加的监控账号',
                 avatar: null,
-                link: `https://weixin.sogou.com/weixin?type=1&query=${encodeURIComponent(name)}`, // 默认搜索链接
-                source: 'manual'
+                link: monitorUrl || `https://weixin.sogou.com/weixin?type=1&query=${encodeURIComponent(name)}`,
+                source: 'manual',
+                monitorType: this.detectMonitorType(monitorUrl)
             };
 
             const result = await this.apiCall('/accounts', {
