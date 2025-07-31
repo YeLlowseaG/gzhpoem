@@ -96,18 +96,54 @@ class MonitorStorageService {
     }
 
     /**
+     * 清理重复账号
+     */
+    async cleanupDuplicateAccounts() {
+        try {
+            const { accounts } = await this.getAccounts();
+            const uniqueAccounts = [];
+            const seen = new Set();
+            
+            for (const account of accounts) {
+                const key = `${account.name}-${account.link}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueAccounts.push(account);
+                } else {
+                    console.log(`🧹 清理重复账号: ${account.name}`);
+                }
+            }
+            
+            if (uniqueAccounts.length !== accounts.length) {
+                await this.saveAccounts(uniqueAccounts);
+                console.log(`✅ 清理完成，从 ${accounts.length} 个账号清理到 ${uniqueAccounts.length} 个`);
+            }
+            
+            return { success: true, cleaned: accounts.length - uniqueAccounts.length };
+        } catch (error) {
+            console.error('❌ 清理重复账号失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
      * 添加监控账号
      */
     async addAccount(accountData) {
         try {
+            // 先清理可能的重复数据
+            await this.cleanupDuplicateAccounts();
+            
             const { accounts } = await this.getAccounts();
             
-            // 检查是否已存在
+            // 检查是否已存在（只检查name和link，避免wechatId为"未知"时的误判）
             const exists = accounts.find(acc => 
-                acc.name === accountData.name || acc.wechatId === accountData.wechatId
+                acc.name === accountData.name || 
+                (acc.link === accountData.link && accountData.link && acc.link !== '')
             );
             
             if (exists) {
+                console.log(`⚠️ 账号已存在: ${accountData.name}, 现有账号:`, exists);
                 return { success: false, error: '账号已存在' };
             }
             
