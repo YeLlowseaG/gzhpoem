@@ -1397,7 +1397,13 @@ app.post('/api/collected-articles', async (req, res) => {
             const response = await axios.get(realUrl, {
                 timeout: 15000,
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1'
                 }
             });
 
@@ -1595,9 +1601,11 @@ app.post('/api/collected-articles', async (req, res) => {
 
         } catch (extractError) {
             console.error('文章内容提取失败:', extractError.message);
+            console.error('错误详情:', extractError);
             res.status(500).json({
                 success: false,
-                error: '无法提取文章内容，请检查链接是否有效'
+                error: `提取失败: ${extractError.message}`,
+                details: extractError.code || 'Unknown'
             });
         }
 
