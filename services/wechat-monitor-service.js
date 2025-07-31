@@ -609,12 +609,7 @@ class WechatMonitorService {
 
         } catch (error) {
             console.error('❌ RSS获取失败:', error.message);
-            // 如果RSS失败，返回模拟数据进行测试
-            console.log('🔄 RSS服务不可用，返回测试数据');
-            return {
-                success: true,
-                articles: this.generateMockArticles(rssUrl, maxCount)
-            };
+            return { success: false, error: `RSS获取失败: ${error.message}` };
         }
     }
 
@@ -936,37 +931,6 @@ class WechatMonitorService {
         return imgMatch ? imgMatch[1] : null;
     }
 
-    /**
-     * 生成模拟文章数据（用于测试）
-     */
-    generateMockArticles(url, maxCount = 5) {
-        const accountName = url.includes('rsshub') ? url.split('/').pop() : '测试账号';
-        const mockTitles = [
-            '最新政策解读：关于经济发展的重要指导意见',
-            '科技创新驱动发展：人工智能时代的机遇与挑战',
-            '教育改革新动向：培养面向未来的人才',
-            '环保政策落地见效：绿色发展成果显著',
-            '民生改善持续推进：幸福指数不断提升'
-        ];
-        
-        const articles = [];
-        const now = new Date();
-        
-        for (let i = 0; i < Math.min(maxCount, mockTitles.length); i++) {
-            const publishTime = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-            articles.push({
-                title: mockTitles[i],
-                link: `https://mp.weixin.qq.com/s/mock-article-${i + 1}`,
-                summary: `这是${accountName}的第${i + 1}篇文章的摘要内容，用于演示监控功能的效果。点击可查看详细内容...`,
-                publishTime: publishTime.toISOString().split('T')[0],
-                cover: null,
-                isNew: i < 2,
-                source: 'mock'
-            });
-        }
-        
-        return articles;
-    }
 
     /**
      * 延迟函数
