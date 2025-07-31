@@ -120,13 +120,28 @@
                         </h5>
                         
                         <div class="row mb-3">
-                            <div class="col-md-5">
+                            <div class="col-md-4">
                                 <input type="text" id="accountName" class="form-control" 
                                        placeholder="账号名称（必填）">
                             </div>
-                            <div class="col-md-5">
+                            <div class="col-md-3">
                                 <input type="text" id="accountUrl" class="form-control" 
                                        placeholder="账号链接（可选）">
+                            </div>
+                            <div class="col-md-3">
+                                <select id="accountPlatform" class="form-select">
+                                    <option value="">选择平台（可选）</option>
+                                    <option value="微信公众号">微信公众号</option>
+                                    <option value="今日头条">今日头条</option>
+                                    <option value="知乎">知乎</option>
+                                    <option value="微博">微博</option>
+                                    <option value="B站">B站</option>
+                                    <option value="小红书">小红书</option>
+                                    <option value="抖音">抖音</option>
+                                    <option value="官方网站">官方网站</option>
+                                    <option value="博客">博客</option>
+                                    <option value="其他">其他</option>
+                                </select>
                             </div>
                             <div class="col-md-2">
                                 <button class="btn btn-primary w-100" id="addAccountBtn">

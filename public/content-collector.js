@@ -66,6 +66,7 @@ class ContentCollector {
     async addAccount() {
         const name = document.getElementById('accountName').value.trim();
         const url = document.getElementById('accountUrl').value.trim();
+        const platform = document.getElementById('accountPlatform').value.trim();
 
         if (!name) {
             this.showMessage('请输入账号名称', 'warning');
@@ -80,7 +81,7 @@ class ContentCollector {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ name, url })
+                body: JSON.stringify({ name, url, platform })
             });
 
             const data = await response.json();
@@ -89,6 +90,7 @@ class ContentCollector {
                 this.showMessage('账号添加成功！', 'success');
                 document.getElementById('accountName').value = '';
                 document.getElementById('accountUrl').value = '';
+                document.getElementById('accountPlatform').value = '';
                 await this.loadAccounts();
                 this.updateAccountSelectors();
             } else {
@@ -144,6 +146,7 @@ class ContentCollector {
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
+                        ${account.platform ? `<span class="badge bg-primary mb-2">${account.platform}</span><br>` : ''}
                         ${account.url ? `<p class="card-text text-muted small mb-2">
                             <a href="${account.url}" target="_blank" class="text-decoration-none">
                                 <i class="bi bi-link-45deg"></i> 查看链接
@@ -363,18 +366,23 @@ class ContentCollector {
                                 ${article.title}
                             </a>
                         </h6>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="bi bi-three-dots"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="${article.url}" target="_blank">
-                                    <i class="bi bi-box-arrow-up-right"></i> 打开原文
-                                </a></li>
-                                <li><a class="dropdown-item text-danger" href="#" onclick="collector.removeArticle('${article.id}')">
-                                    <i class="bi bi-trash"></i> 删除
-                                </a></li>
-                            </ul>
+                        <div class="d-flex gap-2">
+                            <a href="${article.url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-box-arrow-up-right"></i> 原文
+                            </a>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="collector.showFullContent('${article.id}')">
+                                        <i class="bi bi-eye"></i> 查看全文
+                                    </a></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="collector.removeArticle('${article.id}')">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </a></li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                     
@@ -383,14 +391,14 @@ class ContentCollector {
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div class="article-stats">
                             ${article.author ? `<span class="me-3"><i class="bi bi-person"></i> ${article.author}</span>` : ''}
-                            ${article.publishTime ? `<span class="me-3"><i class="bi bi-calendar"></i> ${new Date(article.publishTime).toLocaleDateString()}</span>` : ''}
+                            ${article.publishTime ? `<span class="me-3"><i class="bi bi-calendar"></i> ${this.formatDate(article.publishTime)}</span>` : ''}
                             <span class="badge bg-secondary">${accountName}</span>
                         </div>
                         <div class="article-stats">
-                            ${article.readCount ? `<span class="me-2">阅读 ${article.readCount}</span>` : ''}
-                            ${article.likeCount ? `<span class="me-2">点赞 ${article.likeCount}</span>` : ''}
-                            ${article.shareCount ? `<span class="me-2">分享 ${article.shareCount}</span>` : ''}
-                            ${article.commentCount ? `<span>评论 ${article.commentCount}</span>` : ''}
+                            ${article.readCount ? `<span class="me-2"><i class="bi bi-eye"></i> ${article.readCount}</span>` : ''}
+                            ${article.likeCount ? `<span class="me-2"><i class="bi bi-heart"></i> ${article.likeCount}</span>` : ''}
+                            ${article.shareCount ? `<span class="me-2"><i class="bi bi-share"></i> ${article.shareCount}</span>` : ''}
+                            ${article.commentCount ? `<span><i class="bi bi-chat"></i> ${article.commentCount}</span>` : ''}
                         </div>
                     </div>
                 </div>
@@ -402,6 +410,54 @@ class ContentCollector {
         const tmp = document.createElement('div');
         tmp.innerHTML = html;
         return tmp.textContent || tmp.innerText || '';
+    }
+
+    formatDate(dateString) {
+        if (!dateString) return '未知';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        } catch (error) {
+            return dateString;
+        }
+    }
+
+    showFullContent(articleId) {
+        const article = this.articles.find(a => a.id === articleId);
+        if (!article) return;
+
+        const accountName = this.accounts.find(acc => acc.id === article.accountId)?.name || '未分类';
+        
+        document.getElementById('articleModalTitle').textContent = `${article.title} - 全文`;
+        document.getElementById('articleModalLink').href = article.url;
+        
+        document.getElementById('articleModalContent').innerHTML = `
+            <div class="mb-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>作者:</strong> ${article.author || '未知'}<br>
+                        <strong>发布时间:</strong> ${this.formatDate(article.publishTime)}<br>
+                        <strong>关联账号:</strong> ${accountName}<br>
+                        <strong>收集时间:</strong> ${new Date(article.addedAt).toLocaleString()}
+                    </div>
+                    <div class="col-md-6">
+                        ${article.readCount ? `<strong>阅读量:</strong> ${article.readCount}<br>` : ''}
+                        ${article.likeCount ? `<strong>点赞数:</strong> ${article.likeCount}<br>` : ''}
+                        ${article.shareCount ? `<strong>分享数:</strong> ${article.shareCount}<br>` : ''}
+                        ${article.commentCount ? `<strong>评论数:</strong> ${article.commentCount}<br>` : ''}
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <div class="article-content">
+                <h4>文章全文:</h4>
+                <div style="max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6; padding: 15px; border-radius: 5px;">
+                    ${article.content}
+                </div>
+            </div>
+        `;
+        
+        this.articleModal.show();
     }
 
     showArticleDetail(articleId) {
