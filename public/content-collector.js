@@ -470,7 +470,7 @@ class ContentCollector {
 
         const accountName = this.accounts.find(acc => acc.id === article.accountId)?.name || '未分类';
         
-        document.getElementById('articleModalTitle').textContent = `${article.title} - 全文`;
+        document.getElementById('articleModalTitle').textContent = article.title;
         document.getElementById('articleModalLink').href = article.url;
         
         document.getElementById('articleModalContent').innerHTML = `
@@ -513,6 +513,13 @@ class ContentCollector {
                                     <div class="position-absolute top-0 end-0 bg-dark text-white px-2 py-1 rounded-bottom-start" style="font-size: 0.75em;">
                                         ${index + 1}
                                     </div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <a href="${img}" target="_blank" class="text-decoration-none">
+                                            <i class="bi bi-link-45deg"></i> 图片链接
+                                        </a>
+                                    </small>
                                 </div>
                             </div>
                         `).join('')}
@@ -616,6 +623,13 @@ class ContentCollector {
                                 <div class="position-absolute top-0 end-0 bg-dark text-white px-1" style="font-size: 0.7em; border-radius: 0 0 0 5px;">
                                     ${index + 1}
                                 </div>
+                            </div>
+                            <div class="mt-1">
+                                <small class="text-muted">
+                                    <a href="${img}" target="_blank" class="text-decoration-none" style="font-size: 0.7em;">
+                                        <i class="bi bi-link-45deg"></i> 链接
+                                    </a>
+                                </small>
                             </div>
                         </div>
                     `).join('')}
