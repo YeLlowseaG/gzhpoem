@@ -1280,32 +1280,6 @@ app.get('/api/stats', async (req, res) => {
 // ==================== 公众号监控相关接口 ====================
 
 // 搜索公众号
-app.post('/api/monitor/search-accounts', async (req, res) => {
-    try {
-        const { accountName } = req.body;
-        
-        if (!accountName) {
-            return res.status(400).json({
-                success: false,
-                error: '请输入公众号名称'
-            });
-        }
-        
-        console.log(`🔍 搜索公众号: ${accountName}`);
-        const result = await wechatMonitorService.searchAccount(accountName);
-        
-        res.json(result);
-        
-    } catch (error) {
-        console.error('搜索公众号失败:', error);
-        res.status(500).json({
-            success: false,
-            error: '搜索公众号失败',
-            message: error.message
-        });
-    }
-});
-
 // 添加监控账号
 app.post('/api/monitor/accounts', async (req, res) => {
     try {

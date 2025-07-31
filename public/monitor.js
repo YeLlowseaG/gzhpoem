@@ -178,65 +178,6 @@ class WechatMonitor {
 
     // ==================== 事件处理 ====================
 
-    async searchAccounts() {
-        const accountName = document.getElementById('searchAccountInput').value.trim();
-        if (!accountName) {
-            this.showNotification('请输入公众号名称', 'warning');
-            return;
-        }
-
-        try {
-            this.showNotification('搜索中...', 'info');
-            const result = await this.apiCall('/search-accounts', {
-                method: 'POST',
-                body: JSON.stringify({ accountName })
-            });
-
-            if (result.success && result.accounts.length > 0) {
-                this.renderSearchResults(result.accounts, result.message);
-                this.showNotification(`找到 ${result.accounts.length} 个${result.message ? '智能建议' : '搜索结果'}`, 'success');
-            } else if (result.suggestions && result.suggestions.length > 0) {
-                this.renderSearchResults(result.suggestions, '搜索失败，以下是手动添加建议');
-                this.showNotification('搜索失败，提供手动添加建议', 'warning');
-            } else {
-                this.showNotification(result.error || '没有找到相关账号', 'warning');
-                document.getElementById('searchResults').innerHTML = `
-                    <div style="padding: 20px; text-align: center; color: #666;">
-                        <p>${result.error || '没有找到相关账号'}</p>
-                        <p>建议使用下方的"手动添加"功能</p>
-                    </div>
-                `;
-                document.getElementById('searchResults').style.display = 'block';
-            }
-        } catch (error) {
-            this.showNotification('搜索失败', 'error');
-        }
-    }
-
-    renderSearchResults(accounts, message) {
-        const container = document.getElementById('searchResults');
-        
-        let headerHtml = '';
-        if (message) {
-            headerHtml = `<div style="padding: 10px; background: #f0f8ff; border-bottom: 1px solid #ddd; font-weight: bold; color: #0066cc;">${message}</div>`;
-        }
-        
-        const html = headerHtml + accounts.map(account => `
-            <div class="search-result-item" onclick="addAccount('${JSON.stringify(account).replace(/'/g, '&apos;')}')">
-                <div class="search-result-name">
-                    ${account.name}
-                    ${account.source && account.source.includes('suggestion') ? '<span style="color: #28a745; font-size: 0.8em; margin-left: 8px;">💡 智能建议</span>' : ''}
-                </div>
-                <div class="search-result-desc">
-                    ${account.wechatId !== '未知' ? `微信号: ${account.wechatId} | ` : ''}${account.description || '暂无描述'}
-                </div>
-            </div>
-        `).join('');
-        
-        container.innerHTML = html;
-        container.style.display = 'block';
-    }
-
     async addAccount(accountDataStr) {
         try {
             const accountData = JSON.parse(accountDataStr.replace(/&apos;/g, "'"));
@@ -387,9 +328,12 @@ class WechatMonitor {
     }
 
     detectMonitorType(url) {
-        if (!url) return 'search';
+        if (!url) return 'werss'; // 默认使用WeRSS
         
-        if (url.includes('werss') || url.includes('we-mp-rss') || url.includes(':8001')) {
+        if (url.includes('we-mp-rss-production.up.railway.app') || 
+            url.includes('werss') || 
+            url.includes('we-mp-rss') || 
+            url.includes(':8001')) {
             return 'werss';
         } else if (url.includes('rsshub.app') || url.includes('rss') || url.includes('.xml')) {
             return 'rss';
@@ -398,7 +342,7 @@ class WechatMonitor {
         } else if (url.includes('api') || url.includes('feed')) {
             return 'api';
         } else {
-            return 'custom';
+            return 'werss'; // 默认使用WeRSS处理
         }
     }
 
@@ -469,18 +413,16 @@ class WechatMonitor {
 
     showAddAccountModal() {
         document.getElementById('addAccountModal').style.display = 'block';
-        document.getElementById('searchAccountInput').focus();
+        document.getElementById('manualAccountName').focus();
     }
 
 
     closeAddAccountModal() {
         document.getElementById('addAccountModal').style.display = 'none';
-        document.getElementById('searchAccountInput').value = '';
         document.getElementById('manualAccountName').value = '';
         document.getElementById('manualAccountId').value = '';
         document.getElementById('manualAccountUrl').value = '';
         document.getElementById('manualAccountDesc').value = '';
-        document.getElementById('searchResults').style.display = 'none';
     }
 
     async addManualAccount() {
@@ -565,13 +507,6 @@ function closeAddAccountModal() {
     monitor.closeAddAccountModal();
 }
 
-function searchAccounts() {
-    monitor.searchAccounts();
-}
-
-function addAccount(accountDataStr) {
-    monitor.addAccount(accountDataStr);
-}
 
 function addManualAccount() {
     monitor.addManualAccount();
