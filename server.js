@@ -1438,7 +1438,7 @@ app.post('/api/collected-articles', async (req, res) => {
                                 
                                 article = {
                                     id: Date.now().toString(),
-                                    title: note.title || '未获取到标题',
+                                    title: note.title || '小红书文章',
                                     content: note.desc || '未获取到内容',
                                     author: note.user?.nickname || '未知作者',
                                     publishTime: note.time ? new Date(note.time).toLocaleString() : '',
