@@ -12,7 +12,10 @@ class WeChatMonitor {
     async init() {
         await this.checkServiceStatus();
         await this.loadAccounts();
-        await this.loadArticles();
+        // 只有在有监控账号时才加载文章
+        if (this.accounts && this.accounts.length > 0) {
+            await this.loadArticles();
+        }
         this.bindEvents();
     }
 
@@ -227,6 +230,10 @@ class WeChatMonitor {
                 // 重新加载账号列表
                 await this.loadAccounts();
                 await this.checkServiceStatus();
+                // 如果这是第一个账号，自动加载文章
+                if (this.accounts.length === 1) {
+                    await this.loadArticles();
+                }
             } else {
                 this.showMessage(`添加失败: ${data.error}`, 'danger');
             }
