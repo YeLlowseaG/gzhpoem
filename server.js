@@ -17,6 +17,7 @@ const cheerio = require('cheerio');
 // 服务模块
 const AIService = require('./services/ai-service');
 const WechatService = require('./services/wechat-service');
+const WeChatMonitorService = require('./services/wechat-monitor-service');
 const KVStorageService = require('./services/kv-storage-service');
 const ConfigService = require('./services/config-service');
 const SVGGenerator = require('./services/svg-generator');
@@ -28,6 +29,7 @@ const PORT = 8080;
 // 初始化服务
 const aiService = new AIService();
 const wechatService = new WechatService();
+const wechatMonitorService = new WeChatMonitorService();
 const storageService = new KVStorageService();
 const configService = new ConfigService();
 const svgGenerator = new SVGGenerator();
@@ -1267,6 +1269,189 @@ app.get('/api/stats', async (req, res) => {
         res.status(500).json({
             success: false,
             error: '获取统计失败'
+        });
+    }
+});
+
+// WeChat 监控 API
+// 获取监控服务状态
+app.get('/api/wechat-monitor/status', async (req, res) => {
+    try {
+        const status = await wechatMonitorService.getServiceStatus();
+        res.json({
+            success: true,
+            data: status
+        });
+    } catch (error) {
+        console.error('获取监控服务状态失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取监控服务状态失败'
+        });
+    }
+});
+
+// 搜索微信公众号
+app.get('/api/wechat-monitor/search', async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少搜索关键词'
+            });
+        }
+
+        const result = await wechatMonitorService.searchWeChatAccount(query);
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('搜索微信公众号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '搜索微信公众号失败'
+        });
+    }
+});
+
+// 测试账号监控
+app.post('/api/wechat-monitor/test', async (req, res) => {
+    try {
+        const { accountIdentifier, method = 'auto' } = req.body;
+        if (!accountIdentifier) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少账号标识符'
+            });
+        }
+
+        const result = await wechatMonitorService.testAccountMonitoring(accountIdentifier, method);
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('测试账号监控失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '测试账号监控失败'
+        });
+    }
+});
+
+// 添加监控账号
+app.post('/api/wechat-monitor/accounts', async (req, res) => {
+    try {
+        const { name, identifier, method = 'auto' } = req.body;
+        if (!name || !identifier) {
+            return res.status(400).json({
+                success: false,
+                error: '缺少账号名称或标识符'
+            });
+        }
+
+        const accountInfo = {
+            id: Date.now().toString(), // 简单的ID生成
+            name,
+            identifier,
+            method
+        };
+
+        const result = await wechatMonitorService.addMonitorAccount(accountInfo);
+        res.json({
+            success: true,
+            data: result,
+            message: '监控账号添加成功'
+        });
+    } catch (error) {
+        console.error('添加监控账号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || '添加监控账号失败'
+        });
+    }
+});
+
+// 获取监控账号列表
+app.get('/api/wechat-monitor/accounts', async (req, res) => {
+    try {
+        const accounts = wechatMonitorService.getMonitoredAccounts();
+        res.json({
+            success: true,
+            data: accounts
+        });
+    } catch (error) {
+        console.error('获取监控账号列表失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取监控账号列表失败'
+        });
+    }
+});
+
+// 删除监控账号
+app.delete('/api/wechat-monitor/accounts/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const success = wechatMonitorService.removeMonitorAccount(id);
+        
+        if (success) {
+            res.json({
+                success: true,
+                message: '监控账号删除成功'
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                error: '监控账号不存在'
+            });
+        }
+    } catch (error) {
+        console.error('删除监控账号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '删除监控账号失败'
+        });
+    }
+});
+
+// 获取指定账号的文章
+app.get('/api/wechat-monitor/accounts/:id/articles', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { limit = 10 } = req.query;
+        
+        const articles = await wechatMonitorService.getAccountArticles(id, parseInt(limit));
+        res.json({
+            success: true,
+            data: articles
+        });
+    } catch (error) {
+        console.error('获取账号文章失败:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || '获取账号文章失败'
+        });
+    }
+});
+
+// 获取所有监控账号的文章
+app.get('/api/wechat-monitor/articles', async (req, res) => {
+    try {
+        const { limitPerAccount = 5 } = req.query;
+        
+        const articles = await wechatMonitorService.getAllArticles(parseInt(limitPerAccount));
+        res.json({
+            success: true,
+            data: articles
+        });
+    } catch (error) {
+        console.error('获取所有文章失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取所有文章失败'
         });
     }
 });
