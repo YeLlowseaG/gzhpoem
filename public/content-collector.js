@@ -402,6 +402,9 @@ class ContentCollector {
                             <a href="${article.url}" target="_blank" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-box-arrow-up-right"></i> 原文
                             </a>
+                            <button class="btn btn-sm btn-outline-success" onclick="collector.copyTitleAndContent('${article.id}')">
+                                <i class="bi bi-clipboard"></i> 复制
+                            </button>
                             <div class="dropdown">
                                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                     <i class="bi bi-three-dots"></i>
@@ -409,9 +412,6 @@ class ContentCollector {
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="#" onclick="collector.showFullContent('${article.id}')">
                                         <i class="bi bi-eye"></i> 查看全文
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="collector.copyTitleAndContent('${article.id}')">
-                                        <i class="bi bi-clipboard"></i> 复制标题和全文
                                     </a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item text-danger" href="#" onclick="collector.removeArticle('${article.id}')">
