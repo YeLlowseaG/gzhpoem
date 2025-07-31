@@ -28,6 +28,10 @@
       "dest": "public/monitor.html"
     },
     {
+      "src": "/wechat-monitor.html",
+      "dest": "public/wechat-monitor.html"
+    },
+    {
       "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|svg|ico))",
       "dest": "public/$1"
     },
