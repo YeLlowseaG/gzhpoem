@@ -1361,26 +1361,8 @@ app.post('/api/collected-articles', async (req, res) => {
             });
         }
 
-        // 处理分享链接，提取真实URL
-        let realUrl = url.trim();
-        
-        // 检查是否是小红书分享文本
-        if (realUrl.includes('小红书') && realUrl.includes('https://')) {
-            const urlMatch = realUrl.match(/https:\/\/[^\s]+/);
-            if (urlMatch) {
-                realUrl = urlMatch[0];
-                console.log(`📋 从分享文本中提取真实URL: ${realUrl}`);
-            }
-        }
-        
-        // 检查其他平台的分享格式
-        if (!realUrl.startsWith('http')) {
-            const urlMatch = realUrl.match(/https?:\/\/[^\s]+/);
-            if (urlMatch) {
-                realUrl = urlMatch[0];
-                console.log(`📋 从分享文本中提取URL: ${realUrl}`);
-            }
-        }
+        // URL在前端已经处理过了，这里直接使用
+        const realUrl = url.trim();
 
         console.log(`📖 开始提取文章内容: ${realUrl}`);
 
@@ -1449,7 +1431,7 @@ app.post('/api/collected-articles', async (req, res) => {
             }
             
             // 如果小红书JSON解析失败，或不是小红书链接，使用通用解析
-            if (!article.title || article.title === '未获取到标题') {
+            if (!article || !article.title || article.title === '未获取到标题') {
                 console.log('🔧 使用通用HTML解析方式...');
                 
                 const $ = cheerio.load(response.data);
