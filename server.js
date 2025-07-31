@@ -1573,7 +1573,7 @@ app.post('/api/collected-articles', async (req, res) => {
             
             await storageService.set('collected-articles', existingArticles);
 
-            console.log(`✅ 文章提取成功: ${title}`);
+            console.log(`✅ 文章提取成功: ${article.title}`);
 
             res.json({
                 success: true,
