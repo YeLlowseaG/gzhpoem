@@ -223,6 +223,24 @@ class KVStorageService {
             }
         }
     }
+
+    // 通用 get/set 方法
+    async get(key) {
+        if (this.isRedisAvailable) {
+            const value = await this.redis.get(key);
+            return value ? JSON.parse(value) : null;
+        } else {
+            return this.memoryStorage[key] || null;
+        }
+    }
+
+    async set(key, value) {
+        if (this.isRedisAvailable) {
+            await this.redis.set(key, JSON.stringify(value));
+        } else {
+            this.memoryStorage[key] = value;
+        }
+    }
 }
 
 module.exports = KVStorageService;
