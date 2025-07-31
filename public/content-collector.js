@@ -276,11 +276,11 @@ class ContentCollector {
         // 使用正则表达式提取URL
         const urlPatterns = [
             // 小红书链接格式
-            /https:\/\/www\.xiaohongshu\.com\/[^\s\u4e00-\u9fa5]+/g,
+            /https:\/\/www\.xiaohongshu\.com\/[^\s]+/g,
             // 通用HTTPS链接
-            /https:\/\/[^\s\u4e00-\u9fa5]+/g,
+            /https:\/\/[^\s]+/g,
             // 通用HTTP链接
-            /http:\/\/[^\s\u4e00-\u9fa5]+/g
+            /http:\/\/[^\s]+/g
         ];
         
         for (const pattern of urlPatterns) {
