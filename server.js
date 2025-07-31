@@ -1401,7 +1401,12 @@ app.post('/api/collected-articles', async (req, res) => {
                 
                 if (jsonMatch) {
                     try {
-                        const initialState = JSON.parse(jsonMatch[1]);
+                        // 处理undefined等非标准JSON格式
+                        let jsonStr = jsonMatch[1];
+                        jsonStr = jsonStr.replace(/undefined/g, 'null');
+                        jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1'); // 移除末尾逗号
+                        
+                        const initialState = JSON.parse(jsonStr);
                         const noteData = initialState?.note?.noteDetailMap;
                         
                         if (noteData) {
@@ -1411,9 +1416,18 @@ app.post('/api/collected-articles', async (req, res) => {
                             
                             if (note) {
                                 console.log('✅ 成功解析小红书JSON数据');
+                                console.log('📊 数据概览:', {
+                                    title: note.title,
+                                    author: note.user?.nickname,
+                                    images: note.imageList?.length || 0,
+                                    hasInteractInfo: !!note.interactInfo,
+                                    tags: note.tagList?.length || 0,
+                                    location: note.ipLocation
+                                });
                                 
                                 // 提取图片链接
                                 const images = note.imageList?.map(img => img.urlDefault || img.url) || [];
+                                console.log('🖼️ 提取到图片数量:', images.length);
                                 
                                 // 格式化互动数据
                                 const interactInfo = note.interactInfo || {};
