@@ -219,18 +219,23 @@ class ContentCollector {
 
     // 文章收集
     async extractArticle() {
-        const url = document.getElementById('articleUrl').value.trim();
+        const inputText = document.getElementById('articleUrl').value.trim();
         const accountId = document.getElementById('selectAccount').value;
 
-        if (!url) {
-            this.showMessage('请输入文章链接', 'warning');
+        if (!inputText) {
+            this.showMessage('请输入文章链接或分享内容', 'warning');
             return;
         }
 
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            this.showMessage('请输入有效的网址（以http://或https://开头）', 'warning');
+        // 智能提取URL
+        let extractedUrl = this.extractUrlFromText(inputText);
+        
+        if (!extractedUrl) {
+            this.showMessage('未找到有效的网址链接，请检查输入内容', 'warning');
             return;
         }
+
+        console.log('提取到的URL:', extractedUrl);
 
         this.showLoading('正在提取文章内容...');
 
@@ -240,7 +245,7 @@ class ContentCollector {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ url, accountId })
+                body: JSON.stringify({ url: extractedUrl, accountId })
             });
 
             const data = await response.json();
@@ -260,6 +265,33 @@ class ContentCollector {
         } finally {
             this.hideLoading();
         }
+    }
+
+    extractUrlFromText(text) {
+        // 如果直接是URL，直接返回
+        if (text.startsWith('http://') || text.startsWith('https://')) {
+            return text.trim();
+        }
+        
+        // 使用正则表达式提取URL
+        const urlPatterns = [
+            // 小红书链接格式
+            /https:\/\/www\.xiaohongshu\.com\/[^\s\u4e00-\u9fa5]+/g,
+            // 通用HTTPS链接
+            /https:\/\/[^\s\u4e00-\u9fa5]+/g,
+            // 通用HTTP链接
+            /http:\/\/[^\s\u4e00-\u9fa5]+/g
+        ];
+        
+        for (const pattern of urlPatterns) {
+            const matches = text.match(pattern);
+            if (matches && matches.length > 0) {
+                // 返回第一个匹配的URL
+                return matches[0].trim();
+            }
+        }
+        
+        return null;
     }
 
     showExtractPreview(article) {
