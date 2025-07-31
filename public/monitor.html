@@ -551,14 +551,13 @@
                 <label class="form-label">手动添加监控账号</label>
                 <input type="text" class="form-input" id="manualAccountName" placeholder="公众号名称（必填）">
                 <input type="text" class="form-input" id="manualAccountId" placeholder="微信号（可选）" style="margin-top: 10px;">
-                <input type="url" class="form-input" id="manualAccountUrl" placeholder="监控链接（可选，留空则使用WeRSS）" style="margin-top: 10px;">
+                <input type="url" class="form-input" id="manualAccountUrl" placeholder="RSS链接或公众号链接" style="margin-top: 10px;">
                 <input type="text" class="form-input" id="manualAccountDesc" placeholder="描述（可选）" style="margin-top: 10px;">
                 <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9em; color: #666;">
-                    <strong>💡 推荐使用方式：</strong><br>
-                    • <strong>留空监控链接</strong>：系统自动使用WeRSS服务获取真实文章<br>
-                    • <strong>RSS地址</strong>：https://rsshub.app/wechat/mp/xxx<br>
-                    • <strong>公众号主页</strong>：https://mp.weixin.qq.com/profile?src=3&timestamp=xxx&...<br>
-                    <br><strong>🎯 最佳实践：</strong>只填写公众号名称，监控链接留空，系统会自动使用WeRSS！
+                    <strong>💡 支持的链接类型：</strong><br>
+                    • RSS订阅：https://rsshub.app/xxx 或 .xml 结尾的RSS链接<br>
+                    • 公众号主页：https://mp.weixin.qq.com/profile?src=3&timestamp=xxx&...<br>
+                    • 其他API接口地址
                 </div>
                 <button class="btn btn-success" onclick="addManualAccount()" style="margin-top: 10px;">➕ 手动添加</button>
             </div>

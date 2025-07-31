@@ -328,21 +328,16 @@ class WechatMonitor {
     }
 
     detectMonitorType(url) {
-        if (!url) return 'werss'; // 默认使用WeRSS
+        if (!url) return 'search';
         
-        if (url.includes('we-mp-rss-production.up.railway.app') || 
-            url.includes('werss') || 
-            url.includes('we-mp-rss') || 
-            url.includes(':8001')) {
-            return 'werss';
-        } else if (url.includes('rsshub.app') || url.includes('rss') || url.includes('.xml')) {
+        if (url.includes('rsshub.app') || url.includes('rss') || url.includes('.xml')) {
             return 'rss';
         } else if (url.includes('mp.weixin.qq.com/profile')) {
             return 'wechat-profile';
         } else if (url.includes('api') || url.includes('feed')) {
             return 'api';
         } else {
-            return 'werss'; // 默认使用WeRSS处理
+            return 'custom';
         }
     }
 

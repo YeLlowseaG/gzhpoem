@@ -5,7 +5,6 @@
 
 const axios = require('axios');
 const cheerio = require('cheerio');
-const WeRSSService = require('./werss-service');
 
 class WechatMonitorService {
     constructor() {
@@ -13,7 +12,6 @@ class WechatMonitorService {
         this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
         this.retryDelay = 3000; // 请求间延迟
         this.maxRetries = 2; // 最大重试次数
-        this.weRSSService = new WeRSSService(); // WeRSS服务
     }
 
     /**
@@ -554,8 +552,6 @@ class WechatMonitorService {
                 return await this.getArticlesFromRSS(accountLink, maxCount);
             case 'wechat-profile':
                 return await this.getArticlesFromWechatProfile(accountLink, maxCount);
-            case 'werss':
-                return await this.getArticlesFromWeRSS(accountLink, maxCount);
             case 'api':
                 return await this.getArticlesFromAPI(accountLink, maxCount);
             default:
@@ -729,107 +725,6 @@ class WechatMonitorService {
         }
     }
 
-    /**
-     * 从WeRSS服务获取文章
-     */
-    async getArticlesFromWeRSS(accountInfo, maxCount = 10) {
-        try {
-            console.log(`📡 从WeRSS获取文章: ${JSON.stringify(accountInfo)}`);
-            
-            // accountInfo可能是链接字符串或者包含账号信息的对象
-            let subscriptionId = null;
-            let accountName = null;
-            
-            if (typeof accountInfo === 'string') {
-                // 如果是字符串，尝试从中提取账号名
-                accountName = accountInfo;
-            } else {
-                // 如果是对象，提取所需信息
-                subscriptionId = accountInfo.subscriptionId || accountInfo.id;
-                accountName = accountInfo.name || accountInfo.accountName;
-            }
-            
-            // 首先检查WeRSS服务是否可用
-            const serviceCheck = await this.weRSSService.checkService();
-            if (!serviceCheck.success) {
-                console.error('❌ WeRSS服务不可用:', serviceCheck.error);
-                return { 
-                    success: false, 
-                    error: `WeRSS服务不可用: ${serviceCheck.error}`,
-                    articles: []
-                };
-            }
-            
-            let articles = [];
-            
-            if (subscriptionId) {
-                // 如果有订阅ID，直接获取该订阅的文章
-                console.log(`📰 获取订阅文章，ID: ${subscriptionId}`);
-                const result = await this.weRSSService.getSubscriptionArticles(subscriptionId, maxCount);
-                if (result.success) {
-                    articles = result.articles;
-                } else {
-                    console.error('❌ 获取订阅文章失败:', result.error);
-                }
-            } else if (accountName) {
-                // 如果只有账号名，尝试查找对应的订阅
-                console.log(`🔍 查找账号订阅: ${accountName}`);
-                const subscriptionsResult = await this.weRSSService.getSubscriptions();
-                
-                if (subscriptionsResult.success) {
-                    const subscription = subscriptionsResult.subscriptions.find(sub => 
-                        sub.name === accountName || 
-                        sub.title === accountName ||
-                        (sub.name && sub.name.includes(accountName)) ||
-                        (accountName && accountName.includes(sub.name))
-                    );
-                    
-                    if (subscription) {
-                        console.log(`✅ 找到匹配订阅: ${subscription.id || subscription.name}`);
-                        const result = await this.weRSSService.getSubscriptionArticles(
-                            subscription.id || subscription.name, 
-                            maxCount
-                        );
-                        if (result.success) {
-                            articles = result.articles;
-                        }
-                    } else {
-                        console.log(`💡 未找到匹配订阅，尝试添加新订阅: ${accountName}`);
-                        // 尝试添加新订阅
-                        const addResult = await this.weRSSService.addSubscription(accountName);
-                        if (addResult.success) {
-                            console.log(`✅ 成功添加订阅: ${accountName}`);
-                            // 添加成功后，尝试获取文章
-                            const result = await this.weRSSService.getSubscriptionArticles(
-                                addResult.subscription.id || accountName, 
-                                maxCount
-                            );
-                            if (result.success) {
-                                articles = result.articles;
-                            }
-                        } else {
-                            console.error('❌ 添加订阅失败:', addResult.error);
-                        }
-                    }
-                }
-            }
-            
-            console.log(`✅ WeRSS获取到 ${articles.length} 篇文章`);
-            return { 
-                success: true, 
-                articles: articles,
-                source: 'werss'
-            };
-            
-        } catch (error) {
-            console.error('❌ WeRSS获取文章失败:', error.message);
-            return { 
-                success: false, 
-                error: `WeRSS获取失败: ${error.message}`,
-                articles: []
-            };
-        }
-    }
 
     /**
      * 从搜狗搜索获取文章（原有方法）
