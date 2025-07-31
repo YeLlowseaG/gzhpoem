@@ -378,6 +378,10 @@ class ContentCollector {
                                     <li><a class="dropdown-item" href="#" onclick="collector.showFullContent('${article.id}')">
                                         <i class="bi bi-eye"></i> 查看全文
                                     </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="collector.copyTitleAndContent('${article.id}')">
+                                        <i class="bi bi-clipboard"></i> 复制标题和全文
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item text-danger" href="#" onclick="collector.removeArticle('${article.id}')">
                                         <i class="bi bi-trash"></i> 删除
                                     </a></li>
@@ -458,6 +462,50 @@ class ContentCollector {
         `;
         
         this.articleModal.show();
+    }
+
+    async copyTitleAndContent(articleId) {
+        const article = this.articles.find(a => a.id === articleId);
+        if (!article) {
+            this.showMessage('文章不存在', 'danger');
+            return;
+        }
+
+        try {
+            // 清理HTML标签，获取纯文本内容
+            const plainTextContent = this.stripHtml(article.content);
+            
+            // 组合标题和内容
+            const textToCopy = `${article.title}\n\n${plainTextContent}`;
+            
+            // 使用现代浏览器的Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(textToCopy);
+                this.showMessage('标题和全文已复制到剪贴板！', 'success');
+            } else {
+                // 兼容旧浏览器的方法
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    this.showMessage('标题和全文已复制到剪贴板！', 'success');
+                } catch (err) {
+                    this.showMessage('复制失败，请手动复制', 'danger');
+                }
+                
+                document.body.removeChild(textArea);
+            }
+        } catch (error) {
+            console.error('复制失败:', error);
+            this.showMessage('复制失败，请稍后重试', 'danger');
+        }
     }
 
     showArticleDetail(articleId) {
