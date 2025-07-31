@@ -475,29 +475,39 @@ class ContentCollector {
                         <strong>发布时间:</strong> ${this.formatDate(article.publishTime)}<br>
                         <strong>关联账号:</strong> ${accountName}<br>
                         <strong>收集时间:</strong> ${new Date(article.addedAt).toLocaleString()}
+                        ${article.location ? `<br><strong>发布地:</strong> ${article.location}` : ''}
                     </div>
                     <div class="col-md-6">
                         ${article.readCount ? `<strong>阅读量:</strong> ${article.readCount}<br>` : ''}
                         ${article.likeCount ? `<strong>点赞数:</strong> ${article.likeCount}<br>` : ''}
+                        ${article.collectedCount ? `<strong>收藏数:</strong> ${article.collectedCount}<br>` : ''}
                         ${article.shareCount ? `<strong>分享数:</strong> ${article.shareCount}<br>` : ''}
                         ${article.commentCount ? `<strong>评论数:</strong> ${article.commentCount}<br>` : ''}
+                        ${article.tags && article.tags.length > 0 ? `<strong>标签:</strong> ${article.tags.join(', ')}<br>` : ''}
                     </div>
                 </div>
             </div>
             <hr>
             <div class="article-content">
                 <h4>文章全文:</h4>
-                <div style="max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6; padding: 15px; border-radius: 5px;">
+                <div style="max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6; padding: 15px; border-radius: 5px; background-color: #f8f9fa;">
                     ${article.content}
                 </div>
                 ${article.images && article.images.length > 0 ? `
-                    <h4 class="mt-4">文章图片:</h4>
+                    <h4 class="mt-4">文章图片 (${article.images.length}张):</h4>
                     <div class="row">
-                        ${article.images.map(img => `
+                        ${article.images.map((img, index) => `
                             <div class="col-md-4 mb-3">
-                                <img src="${img}" class="img-fluid rounded" style="max-height: 200px; object-fit: cover; cursor: pointer;" 
-                                     onclick="window.open('${img}', '_blank')" 
-                                     onerror="this.style.display='none'">
+                                <div class="position-relative">
+                                    <img src="${img}" class="img-fluid rounded shadow-sm" 
+                                         style="max-height: 200px; width: 100%; object-fit: cover; cursor: pointer;" 
+                                         onclick="window.open('${img}', '_blank')" 
+                                         onerror="this.style.display='none'"
+                                         title="点击查看大图">
+                                    <div class="position-absolute top-0 end-0 bg-dark text-white px-2 py-1 rounded-bottom-start" style="font-size: 0.75em;">
+                                        ${index + 1}
+                                    </div>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -569,28 +579,38 @@ class ContentCollector {
                         <strong>发布时间:</strong> ${article.publishTime || '未知'}<br>
                         <strong>关联账号:</strong> ${accountName}<br>
                         <strong>收集时间:</strong> ${new Date(article.addedAt).toLocaleString()}
+                        ${article.location ? `<br><strong>发布地:</strong> ${article.location}` : ''}
                     </div>
                     <div class="col-md-6">
                         ${article.readCount ? `<strong>阅读量:</strong> ${article.readCount}<br>` : ''}
                         ${article.likeCount ? `<strong>点赞数:</strong> ${article.likeCount}<br>` : ''}
+                        ${article.collectedCount ? `<strong>收藏数:</strong> ${article.collectedCount}<br>` : ''}
                         ${article.shareCount ? `<strong>分享数:</strong> ${article.shareCount}<br>` : ''}
                         ${article.commentCount ? `<strong>评论数:</strong> ${article.commentCount}<br>` : ''}
+                        ${article.tags && article.tags.length > 0 ? `<strong>标签:</strong> ${article.tags.join(', ')}<br>` : ''}
                     </div>
                 </div>
             </div>
             <hr>
-            <div class="article-content" style="max-height: 400px; overflow-y: auto;">
+            <div class="article-content" style="max-height: 400px; overflow-y: auto; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
                 ${article.content}
             </div>
             ${article.images && article.images.length > 0 ? `
                 <hr>
-                <h6>文章图片:</h6>
+                <h6>文章图片 (${article.images.length}张):</h6>
                 <div class="row">
-                    ${article.images.map(img => `
+                    ${article.images.map((img, index) => `
                         <div class="col-md-4 mb-3">
-                            <img src="${img}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover; cursor: pointer;" 
-                                 onclick="window.open('${img}', '_blank')" 
-                                 onerror="this.style.display='none'">
+                            <div class="position-relative">
+                                <img src="${img}" class="img-fluid rounded shadow-sm" 
+                                     style="max-height: 150px; width: 100%; object-fit: cover; cursor: pointer;" 
+                                     onclick="window.open('${img}', '_blank')" 
+                                     onerror="this.style.display='none'"
+                                     title="点击查看大图">
+                                <div class="position-absolute top-0 end-0 bg-dark text-white px-1" style="font-size: 0.7em; border-radius: 0 0 0 5px;">
+                                    ${index + 1}
+                                </div>
+                            </div>
                         </div>
                     `).join('')}
                 </div>

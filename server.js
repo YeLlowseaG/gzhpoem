@@ -1393,43 +1393,102 @@ app.post('/api/collected-articles', async (req, res) => {
                 }
             });
 
-            const $ = cheerio.load(response.data);
-
-            // 通用提取规则
-            const title = $('h1').first().text().trim() || 
-                         $('title').text().trim() || 
-                         $('meta[property="og:title"]').attr('content') || '未获取到标题';
-
-            const author = $('.author').first().text().trim() || 
-                          $('[rel="author"]').first().text().trim() || 
-                          $('.byline').first().text().trim() || 
-                          $('meta[name="author"]').attr('content') || '';
-
-            // 尝试多种内容选择器
-            let content = '';
-            const contentSelectors = [
-                '.article-content', '.content', '#content', 
-                '.post-content', '.entry-content', '.article-body',
-                '.rich_media_content', '.js_content', 'article'
-            ];
+            let article = {};
             
-            for (const selector of contentSelectors) {
-                content = $(selector).html();
-                if (content && content.trim().length > 100) break;
-            }
-            
-            if (!content) {
-                content = $('body').html() || '未能提取到内容';
-            }
-
-            // 提取图片链接（特别是小红书等平台）
-            let images = [];
-            $('img').each((index, img) => {
-                const src = $(img).attr('src') || $(img).attr('data-src') || $(img).attr('data-original');
-                if (src && src.startsWith('http')) {
-                    images.push(src);
+            // 检查是否是小红书链接，优先尝试解析JSON数据
+            if (realUrl.includes('xiaohongshu.com')) {
+                console.log('🔍 检测到小红书链接，尝试解析JSON数据...');
+                
+                // 尝试从HTML中提取JSON数据
+                const htmlContent = response.data;
+                const jsonMatch = htmlContent.match(/window\.__INITIAL_STATE__\s*=\s*({.+?});?\s*<\/script>/);
+                
+                if (jsonMatch) {
+                    try {
+                        const initialState = JSON.parse(jsonMatch[1]);
+                        const noteData = initialState?.note?.noteDetailMap;
+                        
+                        if (noteData) {
+                            // 获取第一个笔记的数据
+                            const noteId = Object.keys(noteData)[0];
+                            const note = noteData[noteId]?.note;
+                            
+                            if (note) {
+                                console.log('✅ 成功解析小红书JSON数据');
+                                
+                                // 提取图片链接
+                                const images = note.imageList?.map(img => img.urlDefault || img.url) || [];
+                                
+                                // 格式化互动数据
+                                const interactInfo = note.interactInfo || {};
+                                
+                                article = {
+                                    id: Date.now().toString(),
+                                    title: note.title || '未获取到标题',
+                                    content: note.desc || '未获取到内容',
+                                    author: note.user?.nickname || '未知作者',
+                                    publishTime: note.time ? new Date(note.time).toLocaleString() : '',
+                                    url: realUrl,
+                                    accountId: accountId || '',
+                                    addedAt: new Date().toISOString(),
+                                    images: images.filter(img => img && img.startsWith('http')),
+                                    readCount: null, // 小红书不提供阅读量
+                                    likeCount: interactInfo.likedCount || null,
+                                    shareCount: interactInfo.shareCount || null,
+                                    commentCount: interactInfo.commentCount || null,
+                                    collectedCount: interactInfo.collectedCount || null,
+                                    location: note.ipLocation || '',
+                                    tags: note.tagList?.map(tag => tag.name) || []
+                                };
+                            }
+                        }
+                    } catch (jsonError) {
+                        console.warn('⚠️ 解析小红书JSON数据失败，使用通用解析:', jsonError.message);
+                    }
                 }
-            });
+            }
+            
+            // 如果小红书JSON解析失败，或不是小红书链接，使用通用解析
+            if (!article.title || article.title === '未获取到标题') {
+                console.log('🔧 使用通用HTML解析方式...');
+                
+                const $ = cheerio.load(response.data);
+
+                // 通用提取规则
+                const title = $('h1').first().text().trim() || 
+                             $('title').text().trim() || 
+                             $('meta[property="og:title"]').attr('content') || '未获取到标题';
+
+                const author = $('.author').first().text().trim() || 
+                              $('[rel="author"]').first().text().trim() || 
+                              $('.byline').first().text().trim() || 
+                              $('meta[name="author"]').attr('content') || '';
+
+                // 尝试多种内容选择器
+                let content = '';
+                const contentSelectors = [
+                    '.article-content', '.content', '#content', 
+                    '.post-content', '.entry-content', '.article-body',
+                    '.rich_media_content', '.js_content', 'article'
+                ];
+                
+                for (const selector of contentSelectors) {
+                    content = $(selector).html();
+                    if (content && content.trim().length > 100) break;
+                }
+                
+                if (!content) {
+                    content = $('body').html() || '未能提取到内容';
+                }
+
+                // 提取图片链接（特别是小红书等平台）
+                let images = [];
+                $('img').each((index, img) => {
+                    const src = $(img).attr('src') || $(img).attr('data-src') || $(img).attr('data-original');
+                    if (src && src.startsWith('http')) {
+                        images.push(src);
+                    }
+                });
 
             // 清理函数
             function cleanContent(htmlContent) {
@@ -1487,27 +1546,30 @@ app.post('/api/collected-articles', async (req, res) => {
             const shareTexts = $('.share-count, [class*="share"]').text();
             const commentTexts = $('.comment-count, [class*="comment"]').text();
             
-            // 简单数字提取
-            if (readTexts) readCount = readTexts.match(/\d+/)?.[0] || null;
-            if (likeTexts) likeCount = likeTexts.match(/\d+/)?.[0] || null;
-            if (shareTexts) shareCount = shareTexts.match(/\d+/)?.[0] || null;
-            if (commentTexts) commentCount = commentTexts.match(/\d+/)?.[0] || null;
+                // 简单数字提取
+                if (readTexts) readCount = readTexts.match(/\d+/)?.[0] || null;
+                if (likeTexts) likeCount = likeTexts.match(/\d+/)?.[0] || null;
+                if (shareTexts) shareCount = shareTexts.match(/\d+/)?.[0] || null;
+                if (commentTexts) commentCount = commentTexts.match(/\d+/)?.[0] || null;
 
-            const article = {
-                id: Date.now().toString(),
-                title: title,
-                content: content,
-                author: author,
-                publishTime: publishTime,
-                url: realUrl, // 使用清理后的真实URL
-                accountId: accountId || '',
-                readCount: readCount,
-                likeCount: likeCount,
-                shareCount: shareCount,
-                commentCount: commentCount,
-                images: images, // 添加图片链接数组
-                addedAt: new Date().toISOString()
-            };
+                article = {
+                    id: Date.now().toString(),
+                    title: title,
+                    content: content,
+                    author: author,
+                    publishTime: publishTime,
+                    url: realUrl, // 使用清理后的真实URL
+                    accountId: accountId || '',
+                    readCount: readCount,
+                    likeCount: likeCount,
+                    shareCount: shareCount,
+                    commentCount: commentCount,
+                    images: images, // 添加图片链接数组
+                    addedAt: new Date().toISOString(),
+                    tags: [],
+                    location: ''
+                };
+            }
 
             // 保存文章
             const existingArticles = await storageService.get('collected-articles') || [];
