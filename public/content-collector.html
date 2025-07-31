@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内容收集器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: none;
+            margin-bottom: 20px;
+        }
+        .navbar {
+            background: rgba(255,255,255,0.95) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            padding: 8px 20px;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(45deg, #5a6fd8, #6a4190);
+            transform: translateY(-2px);
+        }
+        .account-card {
+            transition: transform 0.3s ease;
+        }
+        .account-card:hover {
+            transform: translateY(-5px);
+        }
+        .article-item {
+            border-left: 4px solid #667eea;
+            padding-left: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .article-item:hover {
+            background-color: rgba(102, 126, 234, 0.05);
+            border-radius: 8px;
+            padding: 10px 15px;
+        }
+        .article-stats {
+            font-size: 0.85em;
+            color: #666;
+        }
+        .content-preview {
+            max-height: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+        .content-preview::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 20px;
+            width: 100%;
+            background: linear-gradient(transparent, white);
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .extract-preview {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="bi bi-collection text-primary"></i>
+                内容收集器
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="bi bi-house"></i> 返回首页
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 100px;">
+        
+        <!-- 账号管理区域 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-person-plus text-primary"></i>
+                            监控账号管理
+                            <small class="text-muted">(<span id="accountCount">0</span> 个账号)</small>
+                        </h5>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-5">
+                                <input type="text" id="accountName" class="form-control" 
+                                       placeholder="账号名称（必填）">
+                            </div>
+                            <div class="col-md-5">
+                                <input type="text" id="accountUrl" class="form-control" 
+                                       placeholder="账号链接（可选）">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" id="addAccountBtn">
+                                    <i class="bi bi-plus"></i> 添加
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="accountsList" class="row">
+                            <!-- 账号列表将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文章收集区域 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-link-45deg text-primary"></i>
+                            收集文章
+                        </h5>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <input type="url" id="articleUrl" class="form-control" 
+                                       placeholder="粘贴文章链接">
+                            </div>
+                            <div class="col-md-4">
+                                <select id="selectAccount" class="form-select">
+                                    <option value="">选择关联账号（可选）</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" id="extractBtn">
+                                    <i class="bi bi-download"></i> 提取
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 提取预览区域 -->
+                        <div id="extractPreview" style="display: none;">
+                            <!-- 提取结果预览 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文章列表 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-journal-text text-primary"></i>
+                            收集的文章
+                            <small class="text-muted">(<span id="articleCount">0</span> 篇)</small>
+                        </h5>
+                        
+                        <!-- 搜索和筛选 -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <input type="text" id="searchInput" class="form-control" 
+                                       placeholder="搜索标题、内容或作者">
+                            </div>
+                            <div class="col-md-4">
+                                <select id="filterAccount" class="form-select">
+                                    <option value="">全部账号</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-primary w-100" id="refreshBtn">
+                                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="articlesList">
+                            <!-- 文章列表将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center py-4">
+                    <div class="loading-spinner mx-auto mb-3"></div>
+                    <div id="loadingText">处理中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文章详情 Modal -->
+    <div class="modal fade" id="articleModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="articleModalTitle">文章详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="articleModalContent">
+                        <!-- 文章详情内容 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a id="articleModalLink" href="#" target="_blank" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> 打开原文
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="content-collector.js"></script>
+</body>
+</html>

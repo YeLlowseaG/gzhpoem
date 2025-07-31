@@ -163,29 +163,51 @@ class WeChatMonitorService {
     async searchWeChatAccount(query) {
         console.log(`🔍 搜索微信公众号: ${query}`);
         
-        try {
-            // 尝试获取文章来验证账号是否存在
-            const articles = await this.rsshubService.getArticlesBySogou(query, 3);
-            
-            if (articles && articles.length > 0) {
-                // 从文章中提取账号信息
-                const accountInfo = {
-                    identifier: query,
-                    name: articles[0].author || query,
-                    latestArticle: articles[0].title,
-                    articleCount: articles.length,
-                    verified: true
-                };
-                
-                console.log(`✅ 找到公众号: ${accountInfo.name}`);
-                return accountInfo;
-            } else {
-                return null;
+        // 尝试多种方法搜索
+        const searchMethods = [
+            {
+                name: '搜狗搜索',
+                fn: () => this.rsshubService.getArticlesBySogou(query, 3)
+            },
+            {
+                name: '智能搜索',
+                fn: () => this.rsshubService.getArticlesSmart(query, 3)
             }
-        } catch (error) {
-            console.error(`❌ 搜索失败: ${error.message}`);
-            return null;
+        ];
+
+        for (const method of searchMethods) {
+            try {
+                console.log(`🔄 尝试方法: ${method.name}`);
+                const articles = await method.fn();
+                
+                if (articles && articles.length > 0) {
+                    // 从文章中提取账号信息
+                    const accountInfo = {
+                        identifier: query,
+                        name: articles[0].author || query,
+                        latestArticle: articles[0].title,
+                        articleCount: articles.length,
+                        verified: true,
+                        searchMethod: method.name
+                    };
+                    
+                    console.log(`✅ 通过${method.name}找到公众号: ${accountInfo.name}`);
+                    return accountInfo;
+                }
+            } catch (error) {
+                console.warn(`⚠️ ${method.name}搜索失败: ${error.message}`);
+                continue;
+            }
         }
+        
+        // 所有方法都失败，返回基本信息让用户尝试
+        console.log(`⚠️ 未能验证公众号，但允许用户尝试添加: ${query}`);
+        return {
+            identifier: query,
+            name: query,
+            verified: false,
+            searchMethod: '未验证'
+        };
     }
 
     /**

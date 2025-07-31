@@ -111,8 +111,18 @@ class WeChatMonitor {
                 // 自动填充表单
                 document.getElementById('accountName').value = data.data.name;
                 document.getElementById('accountIdentifier').value = data.data.identifier;
+                
+                // 根据验证状态显示不同消息
+                if (data.data.verified) {
+                    this.showMessage(`找到公众号: ${data.data.name}`, 'success');
+                } else {
+                    this.showMessage(`无法验证公众号，但您可以尝试添加: ${data.data.name}`, 'info');
+                }
             } else {
-                this.showMessage('未找到该公众号，请检查名称是否正确', 'warning');
+                // 仍然自动填充，让用户可以尝试
+                document.getElementById('accountName').value = query;
+                document.getElementById('accountIdentifier').value = query;
+                this.showMessage('无法验证该公众号，但您可以尝试直接添加', 'info');
                 document.getElementById('searchResult').style.display = 'none';
             }
         } catch (error) {

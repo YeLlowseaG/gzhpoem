@@ -1273,6 +1273,266 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
+// 内容收集 API
+// 监控账号管理
+app.post('/api/monitor-accounts', async (req, res) => {
+    try {
+        const { name, url } = req.body;
+        if (!name) {
+            return res.status(400).json({
+                success: false,
+                error: '账号名称不能为空'
+            });
+        }
+
+        const account = {
+            id: Date.now().toString(),
+            name: name.trim(),
+            url: url?.trim() || '',
+            addedAt: new Date().toISOString()
+        };
+
+        // 获取现有账号列表
+        const existingAccounts = await storageService.get('monitor-accounts') || [];
+        existingAccounts.push(account);
+        
+        await storageService.set('monitor-accounts', existingAccounts);
+
+        res.json({
+            success: true,
+            data: account,
+            message: '监控账号添加成功'
+        });
+    } catch (error) {
+        console.error('添加监控账号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '添加监控账号失败'
+        });
+    }
+});
+
+app.get('/api/monitor-accounts', async (req, res) => {
+    try {
+        const accounts = await storageService.get('monitor-accounts') || [];
+        res.json({
+            success: true,
+            data: accounts
+        });
+    } catch (error) {
+        console.error('获取监控账号列表失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取监控账号列表失败'
+        });
+    }
+});
+
+app.delete('/api/monitor-accounts/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const accounts = await storageService.get('monitor-accounts') || [];
+        const filteredAccounts = accounts.filter(account => account.id !== id);
+        
+        await storageService.set('monitor-accounts', filteredAccounts);
+
+        res.json({
+            success: true,
+            message: '监控账号删除成功'
+        });
+    } catch (error) {
+        console.error('删除监控账号失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '删除监控账号失败'
+        });
+    }
+});
+
+// 文章收集管理
+app.post('/api/collected-articles', async (req, res) => {
+    try {
+        const { url, accountId } = req.body;
+        if (!url) {
+            return res.status(400).json({
+                success: false,
+                error: '文章链接不能为空'
+            });
+        }
+
+        console.log(`📖 开始提取文章内容: ${url}`);
+
+        // 提取文章内容
+        try {
+            const response = await axios.get(url, {
+                timeout: 15000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+            });
+
+            const $ = cheerio.load(response.data);
+
+            // 通用提取规则
+            const title = $('h1').first().text().trim() || 
+                         $('title').text().trim() || 
+                         $('meta[property="og:title"]').attr('content') || '未获取到标题';
+
+            const author = $('.author').first().text().trim() || 
+                          $('[rel="author"]').first().text().trim() || 
+                          $('.byline').first().text().trim() || 
+                          $('meta[name="author"]').attr('content') || '';
+
+            // 尝试多种内容选择器
+            let content = '';
+            const contentSelectors = [
+                '.article-content', '.content', '#content', 
+                '.post-content', '.entry-content', '.article-body',
+                '.rich_media_content', '.js_content', 'article'
+            ];
+            
+            for (const selector of contentSelectors) {
+                content = $(selector).html();
+                if (content && content.trim().length > 100) break;
+            }
+            
+            if (!content) {
+                content = $('body').html() || '未能提取到内容';
+            }
+
+            // 尝试提取发布时间
+            let publishTime = '';
+            const timeSelectors = [
+                'time', '.publish-date', '.date', '.time',
+                '[datetime]', '.post-date', '.article-date'
+            ];
+            
+            for (const selector of timeSelectors) {
+                const timeText = $(selector).text().trim() || $(selector).attr('datetime');
+                if (timeText) {
+                    publishTime = timeText;
+                    break;
+                }
+            }
+
+            // 尝试提取数据（阅读量等）
+            let readCount = null, likeCount = null, shareCount = null, commentCount = null;
+            
+            // 查找可能的数据
+            const readTexts = $('.read-count, .view-count, [class*="read"], [class*="view"]').text();
+            const likeTexts = $('.like-count, [class*="like"], [class*="praise"]').text();
+            const shareTexts = $('.share-count, [class*="share"]').text();
+            const commentTexts = $('.comment-count, [class*="comment"]').text();
+            
+            // 简单数字提取
+            if (readTexts) readCount = readTexts.match(/\d+/)?.[0] || null;
+            if (likeTexts) likeCount = likeTexts.match(/\d+/)?.[0] || null;
+            if (shareTexts) shareCount = shareTexts.match(/\d+/)?.[0] || null;
+            if (commentTexts) commentCount = commentTexts.match(/\d+/)?.[0] || null;
+
+            const article = {
+                id: Date.now().toString(),
+                title: title,
+                content: content,
+                author: author,
+                publishTime: publishTime,
+                url: url,
+                accountId: accountId || '',
+                readCount: readCount,
+                likeCount: likeCount,
+                shareCount: shareCount,
+                commentCount: commentCount,
+                addedAt: new Date().toISOString()
+            };
+
+            // 保存文章
+            const existingArticles = await storageService.get('collected-articles') || [];
+            existingArticles.unshift(article); // 最新的在前面
+            
+            await storageService.set('collected-articles', existingArticles);
+
+            console.log(`✅ 文章提取成功: ${title}`);
+
+            res.json({
+                success: true,
+                data: article,
+                message: '文章收集成功'
+            });
+
+        } catch (extractError) {
+            console.error('文章内容提取失败:', extractError.message);
+            res.status(500).json({
+                success: false,
+                error: '无法提取文章内容，请检查链接是否有效'
+            });
+        }
+
+    } catch (error) {
+        console.error('收集文章失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '收集文章失败'
+        });
+    }
+});
+
+app.get('/api/collected-articles', async (req, res) => {
+    try {
+        const { accountId, search, limit = 50 } = req.query;
+        let articles = await storageService.get('collected-articles') || [];
+
+        // 按账号筛选
+        if (accountId) {
+            articles = articles.filter(article => article.accountId === accountId);
+        }
+
+        // 搜索筛选
+        if (search) {
+            const searchLower = search.toLowerCase();
+            articles = articles.filter(article => 
+                article.title.toLowerCase().includes(searchLower) ||
+                article.content.toLowerCase().includes(searchLower) ||
+                article.author.toLowerCase().includes(searchLower)
+            );
+        }
+
+        // 限制数量
+        articles = articles.slice(0, parseInt(limit));
+
+        res.json({
+            success: true,
+            data: articles
+        });
+    } catch (error) {
+        console.error('获取文章列表失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取文章列表失败'
+        });
+    }
+});
+
+app.delete('/api/collected-articles/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const articles = await storageService.get('collected-articles') || [];
+        const filteredArticles = articles.filter(article => article.id !== id);
+        
+        await storageService.set('collected-articles', filteredArticles);
+
+        res.json({
+            success: true,
+            message: '文章删除成功'
+        });
+    } catch (error) {
+        console.error('删除文章失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '删除文章失败'
+        });
+    }
+});
+
 // WeChat 监控 API
 // 获取监控服务状态
 app.get('/api/wechat-monitor/status', async (req, res) => {
