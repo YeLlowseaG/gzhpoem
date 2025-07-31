@@ -458,6 +458,18 @@ class ContentCollector {
                 <div style="max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6; padding: 15px; border-radius: 5px;">
                     ${article.content}
                 </div>
+                ${article.images && article.images.length > 0 ? `
+                    <h4 class="mt-4">文章图片:</h4>
+                    <div class="row">
+                        ${article.images.map(img => `
+                            <div class="col-md-4 mb-3">
+                                <img src="${img}" class="img-fluid rounded" style="max-height: 200px; object-fit: cover; cursor: pointer;" 
+                                     onclick="window.open('${img}', '_blank')" 
+                                     onerror="this.style.display='none'">
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
             </div>
         `;
         
@@ -538,6 +550,19 @@ class ContentCollector {
             <div class="article-content" style="max-height: 400px; overflow-y: auto;">
                 ${article.content}
             </div>
+            ${article.images && article.images.length > 0 ? `
+                <hr>
+                <h6>文章图片:</h6>
+                <div class="row">
+                    ${article.images.map(img => `
+                        <div class="col-md-4 mb-3">
+                            <img src="${img}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover; cursor: pointer;" 
+                                 onclick="window.open('${img}', '_blank')" 
+                                 onerror="this.style.display='none'">
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
         `;
         
         this.articleModal.show();

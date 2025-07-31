@@ -1361,11 +1361,32 @@ app.post('/api/collected-articles', async (req, res) => {
             });
         }
 
-        console.log(`📖 开始提取文章内容: ${url}`);
+        // 处理分享链接，提取真实URL
+        let realUrl = url.trim();
+        
+        // 检查是否是小红书分享文本
+        if (realUrl.includes('小红书') && realUrl.includes('https://')) {
+            const urlMatch = realUrl.match(/https:\/\/[^\s]+/);
+            if (urlMatch) {
+                realUrl = urlMatch[0];
+                console.log(`📋 从分享文本中提取真实URL: ${realUrl}`);
+            }
+        }
+        
+        // 检查其他平台的分享格式
+        if (!realUrl.startsWith('http')) {
+            const urlMatch = realUrl.match(/https?:\/\/[^\s]+/);
+            if (urlMatch) {
+                realUrl = urlMatch[0];
+                console.log(`📋 从分享文本中提取URL: ${realUrl}`);
+            }
+        }
+
+        console.log(`📖 开始提取文章内容: ${realUrl}`);
 
         // 提取文章内容
         try {
-            const response = await axios.get(url, {
+            const response = await axios.get(realUrl, {
                 timeout: 15000,
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -1400,6 +1421,47 @@ app.post('/api/collected-articles', async (req, res) => {
             if (!content) {
                 content = $('body').html() || '未能提取到内容';
             }
+
+            // 提取图片链接（特别是小红书等平台）
+            let images = [];
+            $('img').each((index, img) => {
+                const src = $(img).attr('src') || $(img).attr('data-src') || $(img).attr('data-original');
+                if (src && src.startsWith('http')) {
+                    images.push(src);
+                }
+            });
+
+            // 清理函数
+            function cleanContent(htmlContent) {
+                let cleanedContent = htmlContent;
+                
+                // 去除常见的无用信息
+                const unwantedPatterns = [
+                    /沪ICP备[^|]*\|/g,
+                    /营业执照[^|]*\|/g,
+                    /沪公网安备[^|]*\|/g,
+                    /增值电信业务[^|]*\|/g,
+                    /医疗器械[^|]*\|/g,
+                    /互联网药品[^|]*\|/g,
+                    /违法不良信息[^|]*\|/g,
+                    /网络文化经营[^|]*\|/g,
+                    /个性化推荐算法[^|]*号/g,
+                    /© \d{4}-\d{4}/g,
+                    /行吟信息科技[\s\S]*?更多/g,
+                    /地址：[^电]*电话：[^更]*更多/g
+                ];
+                
+                unwantedPatterns.forEach(pattern => {
+                    cleanedContent = cleanedContent.replace(pattern, '');
+                });
+                
+                // 去除多余的空白字符
+                cleanedContent = cleanedContent.replace(/\s+/g, ' ').trim();
+                
+                return cleanedContent;
+            }
+
+            content = cleanContent(content);
 
             // 尝试提取发布时间
             let publishTime = '';
@@ -1437,12 +1499,13 @@ app.post('/api/collected-articles', async (req, res) => {
                 content: content,
                 author: author,
                 publishTime: publishTime,
-                url: url,
+                url: realUrl, // 使用清理后的真实URL
                 accountId: accountId || '',
                 readCount: readCount,
                 likeCount: likeCount,
                 shareCount: shareCount,
                 commentCount: commentCount,
+                images: images, // 添加图片链接数组
                 addedAt: new Date().toISOString()
             };
 
