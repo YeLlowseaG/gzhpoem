@@ -1361,32 +1361,14 @@ app.post('/api/collected-articles', async (req, res) => {
             });
         }
 
-        // 处理分享链接，提取真实URL
-        let realUrl = url.trim();
+        // 前端已经处理URL提取，直接使用
+        const realUrl = url.trim();
         
-        // 检查是否是小红书分享文本
-        if (realUrl.includes('小红书') && realUrl.includes('https://')) {
-            const urlMatch = realUrl.match(/https:\/\/[^\s\u4e00-\u9fa5]+/);
-            if (urlMatch) {
-                realUrl = urlMatch[0];
-                console.log(`📋 从小红书分享文本中提取真实URL: ${realUrl}`);
-            }
-        }
-        
-        // 检查其他平台的分享格式
-        if (!realUrl.startsWith('http')) {
-            const urlMatch = realUrl.match(/https?:\/\/[^\s\u4e00-\u9fa5]+/);
-            if (urlMatch) {
-                realUrl = urlMatch[0];
-                console.log(`📋 从分享文本中提取URL: ${realUrl}`);
-            }
-        }
-        
-        // 如果仍然不是有效URL，返回错误
+        // 基本URL验证
         if (!realUrl.startsWith('http')) {
             return res.status(400).json({
                 success: false,
-                error: '无法从输入内容中提取有效的URL链接'
+                error: 'URL格式不正确'
             });
         }
 
