@@ -145,10 +145,12 @@ class WechatMonitor {
         const container = document.getElementById('articlesList');
         
         if (this.articles.length === 0) {
+            const hasAccounts = this.accounts.length > 0;
             container.innerHTML = `
                 <div class="empty-state">
                     <h3>暂无文章</h3>
-                    <p>请先添加监控账号并检查更新</p>
+                    <p>${hasAccounts ? '请点击"🔄 全部更新"获取最新文章' : '请先添加监控账号'}</p>
+                    ${hasAccounts ? '<button class="btn btn-primary" onclick="checkAllAccounts()" style="margin-top: 15px;">🔄 立即获取文章</button>' : ''}
                 </div>
             `;
             return;
@@ -511,10 +513,16 @@ class WechatMonitor {
             });
 
             if (result.success) {
-                this.showNotification('账号添加成功', 'success');
+                this.showNotification('账号添加成功，正在获取文章...', 'success');
                 this.closeAddAccountModal();
                 await this.loadAccounts();
-                await this.loadStats();
+                
+                // 自动触发一次检查获取文章
+                try {
+                    await this.checkAllAccounts();
+                } catch (error) {
+                    this.showNotification('获取文章失败，请手动点击检查', 'warning');
+                }
             } else {
                 this.showNotification(result.error, 'error');
             }
