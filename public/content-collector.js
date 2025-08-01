@@ -533,11 +533,22 @@ class ContentCollector {
                         `).join('')}
                     </div>
                 ` : ''}
-                ${article.imageTexts && article.imageTexts.length > 0 ? `
+                ${article.images && article.images.length > 0 ? `
                     <hr>
-                    <h4 class="mt-4">📝 图片文字内容:</h4>
-                    <div class="image-texts-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; background-color: #f8f9fa;">
-                        ${article.imageTexts.map(imageText => `
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mt-2 mb-0">🖼️ 图片OCR识别</h4>
+                        <button class="btn btn-primary btn-sm" onclick="collector.startOCRRecognition('${article.id}')">
+                            <i class="bi bi-eye"></i> 开始识别文字
+                        </button>
+                    </div>
+                    <div id="ocr-progress-${article.id}" style="display: none;" class="mb-3">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">正在识别图片中的文字...</small>
+                    </div>
+                    <div id="ocr-results-${article.id}" class="image-texts-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; background-color: #f8f9fa;">
+                        ${article.imageTexts && article.imageTexts.length > 0 ? article.imageTexts.map(imageText => `
                             <div class="image-text-item mb-4">
                                 <div class="d-flex align-items-center mb-2">
                                     <span class="badge bg-primary me-2">图片 ${imageText.index}</span>
@@ -547,7 +558,7 @@ class ContentCollector {
                                     ${imageText.text}
                                 </div>
                             </div>
-                        `).join('')}
+                        `).join('') : '<p class="text-muted text-center py-3">点击"开始识别文字"按钮，自动识别所有图片中的文字内容</p>'}
                     </div>
                 ` : ''}
             </div>
@@ -663,11 +674,22 @@ class ContentCollector {
                     `).join('')}
                 </div>
             ` : ''}
-            ${article.imageTexts && article.imageTexts.length > 0 ? `
+            ${article.images && article.images.length > 0 ? `
                 <hr>
-                <h6>📝 图片文字内容:</h6>
-                <div class="image-texts-container" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 10px; background-color: #f8f9fa;">
-                    ${article.imageTexts.map(imageText => `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">🖼️ 图片OCR识别</h6>
+                    <button class="btn btn-primary btn-sm" onclick="collector.startOCRRecognition('${article.id}')" style="font-size: 0.8em;">
+                        <i class="bi bi-eye"></i> 识别文字
+                    </button>
+                </div>
+                <div id="ocr-progress-${article.id}" style="display: none;" class="mb-2">
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                    </div>
+                    <small class="text-muted" style="font-size: 0.7em;">正在识别图片中的文字...</small>
+                </div>
+                <div id="ocr-results-${article.id}" class="image-texts-container" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 10px; background-color: #f8f9fa;">
+                    ${article.imageTexts && article.imageTexts.length > 0 ? article.imageTexts.map(imageText => `
                         <div class="image-text-item mb-3">
                             <div class="d-flex align-items-center mb-1">
                                 <span class="badge bg-primary me-2" style="font-size: 0.7em;">图片 ${imageText.index}</span>
@@ -677,12 +699,108 @@ class ContentCollector {
                                 ${imageText.text}
                             </div>
                         </div>
-                    `).join('')}
+                    `).join('') : '<p class="text-muted text-center py-2" style="font-size: 0.8em;">点击"识别文字"按钮，自动识别所有图片中的文字内容</p>'}
                 </div>
             ` : ''}
         `;
         
         this.articleModal.show();
+    }
+
+    async startOCRRecognition(articleId) {
+        const article = this.articles.find(a => a.id === articleId);
+        if (!article || !article.images || article.images.length === 0) {
+            this.showMessage('没有找到可识别的图片', 'warning');
+            return;
+        }
+
+        // 显示进度条
+        const progressElement = document.getElementById(`ocr-progress-${articleId}`);
+        const resultsElement = document.getElementById(`ocr-results-${articleId}`);
+        const progressBar = progressElement.querySelector('.progress-bar');
+        
+        progressElement.style.display = 'block';
+        progressBar.style.width = '0%';
+        
+        const imageTexts = [];
+        
+        try {
+            for (let i = 0; i < article.images.length; i++) {
+                const imageUrl = article.images[i];
+                const progress = ((i) / article.images.length) * 100;
+                progressBar.style.width = progress + '%';
+                
+                console.log(`🔍 开始识别图片 ${i + 1}/${article.images.length}:`, imageUrl);
+                
+                try {
+                    // 使用 Tesseract.js 进行 OCR 识别
+                    const { data: { text, confidence } } = await Tesseract.recognize(
+                        imageUrl,
+                        'chi_sim+eng', // 中文简体 + 英文
+                        {
+                            logger: m => {
+                                if (m.status === 'recognizing text') {
+                                    const currentProgress = ((i + m.progress) / article.images.length) * 100;
+                                    progressBar.style.width = currentProgress + '%';
+                                }
+                            }
+                        }
+                    );
+                    
+                    const extractedText = text.trim();
+                    console.log(`✅ 图片${i + 1}识别完成，文字长度: ${extractedText.length}`);
+                    
+                    imageTexts.push({
+                        index: i + 1,
+                        imageUrl: imageUrl,
+                        text: extractedText.length > 0 ? extractedText : '未识别到文字内容',
+                        confidence: extractedText.length > 0 ? confidence : 0
+                    });
+                    
+                } catch (ocrError) {
+                    console.error(`❌ 图片${i + 1}识别失败:`, ocrError);
+                    imageTexts.push({
+                        index: i + 1,
+                        imageUrl: imageUrl,
+                        text: '识别失败: ' + ocrError.message,
+                        confidence: 0
+                    });
+                }
+            }
+            
+            // 完成进度条
+            progressBar.style.width = '100%';
+            setTimeout(() => {
+                progressElement.style.display = 'none';
+            }, 1000);
+            
+            // 更新文章数据
+            article.imageTexts = imageTexts;
+            
+            // 更新显示结果
+            resultsElement.innerHTML = imageTexts.map(imageText => `
+                <div class="image-text-item mb-3">
+                    <div class="d-flex align-items-center mb-1">
+                        <span class="badge bg-primary me-2" style="font-size: 0.7em;">图片 ${imageText.index}</span>
+                        ${imageText.confidence > 0 ? `<small class="text-success" style="font-size: 0.7em;">识别成功</small>` : `<small class="text-danger" style="font-size: 0.7em;">识别失败</small>`}
+                    </div>
+                    <div class="image-text-content p-2 border rounded" style="background-color: white; white-space: pre-wrap; font-size: 0.85em;">
+                        ${imageText.text}
+                    </div>
+                </div>
+            `).join('');
+            
+            // 保存到本地存储（可选）
+            localStorage.setItem(`article-ocr-${articleId}`, JSON.stringify(imageTexts));
+            
+            const successCount = imageTexts.filter(t => t.confidence > 0).length;
+            this.showMessage(`🎉 OCR识别完成！成功识别 ${successCount}/${imageTexts.length} 张图片`, 'success');
+            
+        } catch (error) {
+            console.error('OCR识别过程中出错:', error);
+            progressElement.style.display = 'none';
+            this.showMessage('OCR识别过程中出错: ' + error.message, 'danger');
+        }
     }
 
     async removeArticle(articleId) {
