@@ -215,15 +215,20 @@ class AIService {
                 finalCover = await this.coverGenerator.generateTextCover(author, title, style);
             }
 
+            // 处理文章生成结果
+            if (articleResult.status !== 'fulfilled') {
+                throw new Error(`文章生成失败: ${articleResult.reason?.message || '未知错误'}`);
+            }
+
             // 处理结果
             const result = {
                 success: true,
-                content: articleResult.status === 'fulfilled' ? articleResult.value.content : this.getBackupContent(author, title),
+                content: articleResult.value.content,
                 titles: titleResult.status === 'fulfilled' ? titleResult.value : [this.getBackupTitle(author, title)],
                 cover: finalCover,
-                source: articleResult.status === 'fulfilled' ? articleResult.value.source : 'template',
-                provider: articleResult.status === 'fulfilled' ? articleResult.value.provider : 'local',
-                usage: articleResult.status === 'fulfilled' ? articleResult.value.usage : null,
+                source: articleResult.value.source,
+                provider: articleResult.value.provider,
+                usage: articleResult.value.usage,
                 generatedAt: new Date().toISOString()
             };
             
@@ -232,17 +237,7 @@ class AIService {
             
         } catch (error) {
             console.error('生成完整内容包失败:', error);
-            
-            // 完全备用方案
-            return {
-                success: true,
-                content: this.getBackupContent(author, title),
-                titles: [this.getBackupTitle(author, title)],
-                cover: this.getBackupCover(author, title),
-                source: 'backup',
-                provider: 'local',
-                error: error.message
-            };
+            throw error;
         }
     }
 
@@ -250,24 +245,42 @@ class AIService {
      * 生成文章内容
      */
     async generateArticleContent({ author, title, style, keywords, content, customPrompt }) {
-        try {
-            // 如果有AI服务，优先使用AI
-            if (this.currentProvider) {
+        const originalProvider = this.currentProvider;
+        const availableProviders = Object.keys(this.providers).filter(provider => this.providers[provider].key);
+        
+        if (availableProviders.length === 0) {
+            throw new Error('没有可用的AI服务，请配置AI API密钥');
+        }
+
+        // 尝试所有可用的AI服务
+        for (let i = 0; i < availableProviders.length; i++) {
+            const provider = availableProviders[i];
+            this.currentProvider = provider;
+            
+            try {
+                console.log(`🤖 尝试使用 ${provider} 生成文章...`);
                 const aiResult = await this.generateWithAI({ author, title, style, keywords, content, customPrompt });
                 if (aiResult.success) {
                     return aiResult;
                 }
+            } catch (error) {
+                console.error(`❌ ${provider} 生成失败:`, error.message);
+                
+                // 如果不是最后一个服务，继续尝试下一个
+                if (i < availableProviders.length - 1) {
+                    console.log(`🔄 切换到下一个AI服务...`);
+                    continue;
+                }
+                
+                // 所有服务都失败了，抛出详细错误
+                this.currentProvider = originalProvider;
+                throw new Error(`所有AI服务都无法连接，请检查网络连接或稍后重试。最后一个错误：${error.message}`);
             }
-            
-            // 降级到模板生成
-            console.log('📝 使用本地模板生成文章');
-            return this.generateWithTemplate({ author, title, style, keywords, content });
-            
-        } catch (error) {
-            console.error('生成文章内容失败:', error);
-            // 最后的备用方案
-            return this.generateWithTemplate({ author, title, style, keywords, content });
         }
+        
+        // 如果执行到这里，说明所有服务都没有成功
+        this.currentProvider = originalProvider;
+        throw new Error('所有AI服务都生成失败，请稍后重试');
     }
 
     /**
@@ -349,10 +362,6 @@ class AIService {
             
         } catch (error) {
             console.error(`${this.currentProvider} 调用失败:`, error.message);
-            
-            // 尝试切换到其他可用服务
-            this.switchToBackupProvider();
-            
             throw error;
         }
     }
