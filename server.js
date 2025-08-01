@@ -13,7 +13,6 @@ axios.get('https://api.ipify.org?format=json').then(res => {
   console.warn('无法获取出口IP:', err.message);
 });
 const cheerio = require('cheerio');
-const Tesseract = require('tesseract.js');
 
 // 服务模块
 const AIService = require('./services/ai-service');
@@ -419,47 +418,57 @@ async function downloadImageToBase64(imageUrl) {
 }
 
 /**
- * 执行OCR文字识别 - 使用Tesseract.js
+ * 执行OCR文字识别 - 使用OCR.space在线API
  */
 async function performOCR(imageBase64) {
     try {
-        console.log('🔍 开始使用 Tesseract.js 进行 OCR 识别...');
+        console.log('🔍 开始使用 OCR.space 进行在线 OCR 识别...');
         
-        // 将base64转换为Buffer
-        const imageBuffer = Buffer.from(imageBase64, 'base64');
+        // 使用 OCR.space 免费API
+        const response = await axios.post('https://api.ocr.space/parse/image', {
+            base64Image: `data:image/jpeg;base64,${imageBase64}`,
+            language: 'chs', // 中文简体
+            apikey: 'K87899142388957', // OCR.space免费API密钥
+            isOverlayRequired: false,
+            detectOrientation: true,
+            scale: true,
+            isTable: false
+        }, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            timeout: 30000
+        });
         
-        // 使用 Tesseract.js 进行 OCR 识别
-        const { data: { text, confidence } } = await Tesseract.recognize(
-            imageBuffer,
-            'chi_sim+eng', // 中文简体 + 英文
-            {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        console.log(`📝 OCR 进度: ${Math.round(m.progress * 100)}%`);
-                    }
-                }
+        console.log('✅ OCR API 调用成功');
+        
+        if (response.data && response.data.ParsedResults && response.data.ParsedResults.length > 0) {
+            const result = response.data.ParsedResults[0];
+            const extractedText = result.ParsedText ? result.ParsedText.trim() : '';
+            
+            console.log(`📄 识别到文字长度: ${extractedText.length} 字符`);
+            
+            if (extractedText.length > 0) {
+                return {
+                    success: true,
+                    text: extractedText,
+                    confidence: result.TextOverlay ? 0.9 : 0.8
+                };
+            } else {
+                return {
+                    success: false,
+                    error: '未识别到任何文字内容'
+                };
             }
-        );
-        
-        const extractedText = text.trim();
-        console.log(`✅ OCR 识别完成，置信度: ${Math.round(confidence * 100)}%`);
-        console.log(`📄 识别到文字长度: ${extractedText.length} 字符`);
-        
-        if (extractedText.length > 0) {
-            return {
-                success: true,
-                text: extractedText,
-                confidence: confidence
-            };
         } else {
             return {
                 success: false,
-                error: '未识别到任何文字内容'
+                error: 'OCR服务返回格式异常'
             };
         }
         
     } catch (error) {
-        console.error('❌ Tesseract.js OCR 识别失败:', error.message);
+        console.error('❌ OCR.space 识别失败:', error.message);
         return {
             success: false,
             error: `OCR识别失败: ${error.message}`
