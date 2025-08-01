@@ -5,7 +5,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
+const fsPromises = fs.promises;
 const axios = require('axios');
 axios.get('https://api.ipify.org?format=json').then(res => {
   console.log('🌐 当前出口IP:', res.data.ip, '（请加入微信白名单）');
@@ -13,6 +14,7 @@ axios.get('https://api.ipify.org?format=json').then(res => {
   console.warn('无法获取出口IP:', err.message);
 });
 const cheerio = require('cheerio');
+const Tesseract = require('tesseract.js');
 
 // 服务模块
 const AIService = require('./services/ai-service');
@@ -363,7 +365,79 @@ app.post('/api/ocr/prepare', async (req, res) => {
     }
 });
 
-// OCR 功能改为前端实现，服务端不再处理图片OCR
+/**
+ * 下载图片到临时文件并进行OCR识别
+ */
+async function downloadAndOCR(imageUrl, index = 1) {
+    const tempDir = path.join(__dirname, 'temp');
+    const fileName = `image_${Date.now()}_${index}.jpg`;
+    const filePath = path.join(tempDir, fileName);
+    
+    try {
+        // 确保临时目录存在
+        await fsPromises.mkdir(tempDir, { recursive: true });
+        
+        console.log(`⬇️ 下载图片 ${index}: ${imageUrl.substring(0, 50)}...`);
+        
+        // 下载图片
+        const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 15000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.xiaohongshu.com/'
+            }
+        });
+        
+        // 保存到临时文件
+        await fsPromises.writeFile(filePath, response.data);
+        console.log(`💾 图片 ${index} 已保存到临时文件: ${Math.round(response.data.length / 1024)}KB`);
+        
+        // 使用 Tesseract.js 进行 OCR 识别
+        console.log(`🔍 开始 OCR 识别图片 ${index}...`);
+        const { data: { text, confidence } } = await Tesseract.recognize(
+            filePath,
+            'chi_sim+eng', // 中文简体 + 英文
+            {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        console.log(`📝 图片 ${index} OCR 进度: ${Math.round(m.progress * 100)}%`);
+                    }
+                }
+            }
+        );
+        
+        const extractedText = text.trim();
+        console.log(`✅ 图片 ${index} OCR 完成，置信度: ${Math.round(confidence * 100)}%，文字长度: ${extractedText.length}`);
+        
+        // 删除临时文件
+        await fsPromises.unlink(filePath);
+        console.log(`🗑️ 临时文件已删除: ${fileName}`);
+        
+        return {
+            success: true,
+            text: extractedText.length > 0 ? extractedText : '未识别到文字内容',
+            confidence: extractedText.length > 0 ? confidence : 0
+        };
+        
+    } catch (error) {
+        console.error(`❌ 图片 ${index} 处理失败:`, error.message);
+        
+        // 确保删除临时文件
+        try {
+            await fsPromises.unlink(filePath);
+        } catch (cleanupError) {
+            // 忽略清理错误
+        }
+        
+        return {
+            success: false,
+            error: error.message,
+            text: '识别失败: ' + error.message,
+            confidence: 0
+        };
+    }
+}
 
 // ==================== 爆款文相关接口 ====================
 
@@ -1317,7 +1391,27 @@ app.post('/api/collected-articles', async (req, res) => {
                                     imageTexts: [] // 存储图片OCR结果
                                 };
                                 
-                                console.log(`🖼️ 找到 ${article.images.length} 张图片，OCR功能已移至前端处理`);
+                                // 对图片进行OCR识别
+                                if (article.images.length > 0) {
+                                    console.log(`🔍 开始OCR识别 ${article.images.length} 张图片...`);
+                                    
+                                    for (let i = 0; i < article.images.length; i++) {
+                                        const imageUrl = article.images[i];
+                                        console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}...`);
+                                        
+                                        const ocrResult = await downloadAndOCR(imageUrl, i + 1);
+                                        
+                                        article.imageTexts.push({
+                                            index: i + 1,
+                                            imageUrl: imageUrl,
+                                            text: ocrResult.text,
+                                            confidence: ocrResult.confidence
+                                        });
+                                    }
+                                    
+                                    const successCount = article.imageTexts.filter(t => t.confidence > 0).length;
+                                    console.log(`🎉 OCR识别完成，成功识别: ${successCount}/${article.images.length} 张`);
+                                }
                             }
                         }
                     } catch (jsonError) {
@@ -1450,9 +1544,26 @@ app.post('/api/collected-articles', async (req, res) => {
                 };
             }
             
-            // 图片OCR功能已移至前端处理
-            if (article && article.images && article.images.length > 0) {
-                console.log(`🖼️ 通用解析：找到 ${article.images.length} 张图片，OCR功能已移至前端处理`);
+            // 对图片进行OCR识别
+            if (article && article.images && article.images.length > 0 && article.imageTexts.length === 0) {
+                console.log(`🔍 通用解析：开始OCR识别 ${article.images.length} 张图片...`);
+                
+                for (let i = 0; i < article.images.length; i++) {
+                    const imageUrl = article.images[i];
+                    console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}...`);
+                    
+                    const ocrResult = await downloadAndOCR(imageUrl, i + 1);
+                    
+                    article.imageTexts.push({
+                        index: i + 1,
+                        imageUrl: imageUrl,
+                        text: ocrResult.text,
+                        confidence: ocrResult.confidence
+                    });
+                }
+                
+                const successCount = article.imageTexts.filter(t => t.confidence > 0).length;
+                console.log(`🎉 通用OCR识别完成，成功识别: ${successCount}/${article.images.length} 张`);
             }
 
             // 保存文章
