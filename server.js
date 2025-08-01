@@ -13,6 +13,7 @@ axios.get('https://api.ipify.org?format=json').then(res => {
   console.warn('无法获取出口IP:', err.message);
 });
 const cheerio = require('cheerio');
+const Tesseract = require('tesseract.js');
 
 // 服务模块
 const AIService = require('./services/ai-service');
@@ -418,114 +419,51 @@ async function downloadImageToBase64(imageUrl) {
 }
 
 /**
- * 执行OCR文字识别
+ * 执行OCR文字识别 - 使用Tesseract.js
  */
 async function performOCR(imageBase64) {
     try {
-        const response = await axios.post(
-            'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+        console.log('🔍 开始使用 Tesseract.js 进行 OCR 识别...');
+        
+        // 将base64转换为Buffer
+        const imageBuffer = Buffer.from(imageBase64, 'base64');
+        
+        // 使用 Tesseract.js 进行 OCR 识别
+        const { data: { text, confidence } } = await Tesseract.recognize(
+            imageBuffer,
+            'chi_sim+eng', // 中文简体 + 英文
             {
-                model: 'qwen-vl-ocr',
-                input: {
-                    messages: [
-                        {
-                            role: 'user',
-                            content: [
-                                {
-                                    image: `data:image/jpeg;base64,${imageBase64}`
-                                },
-                                {
-                                    text: '请识别图片中的所有文字内容，按原始排版格式输出，保持段落和换行。'
-                                }
-                            ]
-                        }
-                    ]
-                },
-                parameters: {
-                    result_format: 'message'
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        console.log(`📝 OCR 进度: ${Math.round(m.progress * 100)}%`);
+                    }
                 }
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.QWEN_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 30000
             }
         );
         
-        if (response.data.output && response.data.output.choices) {
-            const extractedText = response.data.output.choices[0].message.content;
+        const extractedText = text.trim();
+        console.log(`✅ OCR 识别完成，置信度: ${Math.round(confidence * 100)}%`);
+        console.log(`📄 识别到文字长度: ${extractedText.length} 字符`);
+        
+        if (extractedText.length > 0) {
             return {
                 success: true,
-                text: extractedText.trim(),
-                confidence: 0.95
+                text: extractedText,
+                confidence: confidence
             };
         } else {
-            throw new Error('OCR服务返回格式异常');
+            return {
+                success: false,
+                error: '未识别到任何文字内容'
+            };
         }
         
     } catch (error) {
-        console.error('通义千问OCR调用失败:', error.message);
-        
-        // 降级到简单的文字提取（适用于简单图片）
-        try {
-            return await fallbackOCR(imageBase64);
-        } catch (fallbackError) {
-            return {
-                success: false,
-                error: `OCR失败: ${error.message}, 降级处理也失败: ${fallbackError.message}`
-            };
-        }
-    }
-}
-
-/**
- * 降级OCR处理（使用通用视觉识别）
- */
-async function fallbackOCR(imageBase64) {
-    const response = await axios.post(
-        'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
-        {
-            model: 'qwen-vl-plus',
-            input: {
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                image: `data:image/jpeg;base64,${imageBase64}`
-                            },
-                            {
-                                text: '这是一张包含文字的图片，请仔细识别并提取图片中的所有文字内容。请按照原文的格式和段落结构输出，不要添加任何解释或分析。'
-                            }
-                        ]
-                    }
-                ]
-            },
-            parameters: {
-                result_format: 'message',
-                max_tokens: 2000
-            }
-        },
-        {
-            headers: {
-                'Authorization': `Bearer ${process.env.QWEN_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 30000
-        }
-    );
-    
-    if (response.data.output && response.data.output.choices) {
-        const content = response.data.output.choices[0].message.content;
+        console.error('❌ Tesseract.js OCR 识别失败:', error.message);
         return {
-            success: true,
-            text: content.trim(),
-            confidence: 0.85
+            success: false,
+            error: `OCR识别失败: ${error.message}`
         };
-    } else {
-        throw new Error('降级OCR服务返回格式异常');
     }
 }
 
