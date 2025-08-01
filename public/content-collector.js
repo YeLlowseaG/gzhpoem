@@ -508,23 +508,26 @@ class ContentCollector {
                     <h4 class="mt-4">文章图片 (${article.images.length}张):</h4>
                     <div class="row">
                         ${article.images.map((img, index) => `
-                            <div class="col-md-4 mb-3">
-                                <div class="position-relative">
-                                    <img src="${img}" class="img-fluid rounded shadow-sm" 
-                                         style="max-height: 200px; width: 100%; object-fit: cover; cursor: pointer;" 
-                                         onclick="window.open('${img}', '_blank')" 
-                                         onerror="this.style.display='none'"
-                                         title="点击查看大图">
-                                    <div class="position-absolute top-0 end-0 bg-dark text-white px-2 py-1 rounded-bottom-start" style="font-size: 0.75em;">
-                                        ${index + 1}
+                            <div class="col-12 mb-4">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="position-relative" style="min-width: 200px;">
+                                        <img src="${img}" class="img-fluid rounded shadow-sm" 
+                                             style="max-height: 150px; max-width: 200px; object-fit: cover; cursor: pointer;" 
+                                             onclick="window.open('${img}', '_blank')" 
+                                             onerror="this.style.display='none'"
+                                             title="点击查看大图">
+                                        <div class="position-absolute top-0 end-0 bg-dark text-white px-2 py-1 rounded-bottom-start" style="font-size: 0.75em;">
+                                            ${index + 1}
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="mt-2">
-                                    <small class="text-muted">
-                                        <a href="${img}" target="_blank" class="text-decoration-none">
-                                            <i class="bi bi-link-45deg"></i> 图片链接
-                                        </a>
-                                    </small>
+                                    <div class="flex-grow-1">
+                                        <p class="mb-2"><strong>图片 ${index + 1}</strong></p>
+                                        <div>
+                                            <a href="${img}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-link-45deg"></i> 打开图片链接
+                                            </a>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         `).join('')}
@@ -618,23 +621,26 @@ class ContentCollector {
                 <h6>文章图片 (${article.images.length}张):</h6>
                 <div class="row">
                     ${article.images.map((img, index) => `
-                        <div class="col-md-4 mb-3">
-                            <div class="position-relative">
-                                <img src="${img}" class="img-fluid rounded shadow-sm" 
-                                     style="max-height: 150px; width: 100%; object-fit: cover; cursor: pointer;" 
-                                     onclick="window.open('${img}', '_blank')" 
-                                     onerror="this.style.display='none'"
-                                     title="点击查看大图">
-                                <div class="position-absolute top-0 end-0 bg-dark text-white px-1" style="font-size: 0.7em; border-radius: 0 0 0 5px;">
-                                    ${index + 1}
+                        <div class="col-12 mb-3">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="position-relative" style="min-width: 150px;">
+                                    <img src="${img}" class="img-fluid rounded shadow-sm" 
+                                         style="max-height: 120px; max-width: 150px; object-fit: cover; cursor: pointer;" 
+                                         onclick="window.open('${img}', '_blank')" 
+                                         onerror="this.style.display='none'"
+                                         title="点击查看大图">
+                                    <div class="position-absolute top-0 end-0 bg-dark text-white px-1" style="font-size: 0.7em; border-radius: 0 0 0 5px;">
+                                        ${index + 1}
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="mt-1">
-                                <small class="text-muted">
-                                    <a href="${img}" target="_blank" class="text-decoration-none" style="font-size: 0.7em;">
-                                        <i class="bi bi-link-45deg"></i> 链接
-                                    </a>
-                                </small>
+                                <div class="flex-grow-1">
+                                    <p class="mb-1"><strong>图片 ${index + 1}</strong></p>
+                                    <div>
+                                        <a href="${img}" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size: 0.8em;">
+                                            <i class="bi bi-link-45deg"></i> 打开链接
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     `).join('')}
