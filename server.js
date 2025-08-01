@@ -14,7 +14,6 @@ axios.get('https://api.ipify.org?format=json').then(res => {
   console.warn('无法获取出口IP:', err.message);
 });
 const cheerio = require('cheerio');
-const Tesseract = require('tesseract.js');
 
 // 服务模块
 const AIService = require('./services/ai-service');
@@ -366,74 +365,54 @@ app.post('/api/ocr/prepare', async (req, res) => {
 });
 
 /**
- * 下载图片到临时文件并进行OCR识别
+ * 使用OCR.space API进行图片文字识别
  */
-async function downloadAndOCR(imageUrl, index = 1) {
-    const tempDir = path.join(__dirname, 'temp');
-    const fileName = `image_${Date.now()}_${index}.jpg`;
-    const filePath = path.join(tempDir, fileName);
-    
+async function performOCR(imageUrl, index = 1) {
     try {
-        // 确保临时目录存在
-        await fsPromises.mkdir(tempDir, { recursive: true });
+        console.log(`🔍 开始OCR识别图片 ${index}: ${imageUrl.substring(0, 50)}...`);
         
-        console.log(`⬇️ 下载图片 ${index}: ${imageUrl.substring(0, 50)}...`);
-        
-        // 下载图片
-        const response = await axios.get(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 15000,
+        // 使用OCR.space免费API
+        const response = await axios.post('https://api.ocr.space/parse/image', {
+            url: imageUrl,
+            language: 'chs', // 中文简体
+            apikey: 'K87899142388957', // 免费公共API Key
+            isOverlayRequired: false,
+            detectOrientation: true,
+            isTable: false
+        }, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://www.xiaohongshu.com/'
-            }
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            timeout: 30000
         });
         
-        // 保存到临时文件
-        await fsPromises.writeFile(filePath, response.data);
-        console.log(`💾 图片 ${index} 已保存到临时文件: ${Math.round(response.data.length / 1024)}KB`);
+        console.log(`✅ 图片 ${index} OCR API调用成功`);
         
-        // 使用 Tesseract.js 进行 OCR 识别
-        console.log(`🔍 开始 OCR 识别图片 ${index}...`);
-        const { data: { text, confidence } } = await Tesseract.recognize(
-            filePath,
-            'chi_sim+eng', // 中文简体 + 英文
-            {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        console.log(`📝 图片 ${index} OCR 进度: ${Math.round(m.progress * 100)}%`);
-                    }
-                }
-            }
-        );
-        
-        const extractedText = text.trim();
-        console.log(`✅ 图片 ${index} OCR 完成，置信度: ${Math.round(confidence * 100)}%，文字长度: ${extractedText.length}`);
-        
-        // 删除临时文件
-        await fsPromises.unlink(filePath);
-        console.log(`🗑️ 临时文件已删除: ${fileName}`);
-        
-        return {
-            success: true,
-            text: extractedText.length > 0 ? extractedText : '未识别到文字内容',
-            confidence: extractedText.length > 0 ? confidence : 0
-        };
-        
-    } catch (error) {
-        console.error(`❌ 图片 ${index} 处理失败:`, error.message);
-        
-        // 确保删除临时文件
-        try {
-            await fsPromises.unlink(filePath);
-        } catch (cleanupError) {
-            // 忽略清理错误
+        if (response.data && response.data.ParsedResults && response.data.ParsedResults.length > 0) {
+            const result = response.data.ParsedResults[0];
+            const extractedText = result.ParsedText ? result.ParsedText.trim() : '';
+            
+            console.log(`📄 图片 ${index} 识别完成，文字长度: ${extractedText.length}`);
+            
+            return {
+                success: extractedText.length > 0,
+                text: extractedText.length > 0 ? extractedText : '未识别到文字内容',
+                confidence: extractedText.length > 0 ? 0.9 : 0
+            };
+        } else {
+            console.error(`❌ 图片 ${index} OCR返回格式异常:`, response.data);
+            return {
+                success: false,
+                text: 'OCR服务返回格式异常',
+                confidence: 0
+            };
         }
         
+    } catch (error) {
+        console.error(`❌ 图片 ${index} OCR识别失败:`, error.message);
         return {
             success: false,
-            error: error.message,
-            text: '识别失败: ' + error.message,
+            text: `OCR识别失败: ${error.message}`,
             confidence: 0
         };
     }
@@ -1399,7 +1378,7 @@ app.post('/api/collected-articles', async (req, res) => {
                                         const imageUrl = article.images[i];
                                         console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}...`);
                                         
-                                        const ocrResult = await downloadAndOCR(imageUrl, i + 1);
+                                        const ocrResult = await performOCR(imageUrl, i + 1);
                                         
                                         article.imageTexts.push({
                                             index: i + 1,
@@ -1552,7 +1531,7 @@ app.post('/api/collected-articles', async (req, res) => {
                     const imageUrl = article.images[i];
                     console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}...`);
                     
-                    const ocrResult = await downloadAndOCR(imageUrl, i + 1);
+                    const ocrResult = await performOCR(imageUrl, i + 1);
                     
                     article.imageTexts.push({
                         index: i + 1,
