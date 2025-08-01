@@ -1277,7 +1277,7 @@ app.get('/api/stats', async (req, res) => {
 // 监控账号管理
 app.post('/api/monitor-accounts', async (req, res) => {
     try {
-        const { name, url, platform } = req.body;
+        const { name, accountId, url, platform } = req.body;
         if (!name) {
             return res.status(400).json({
                 success: false,
@@ -1288,6 +1288,7 @@ app.post('/api/monitor-accounts', async (req, res) => {
         const account = {
             id: Date.now().toString(),
             name: name.trim(),
+            accountId: accountId?.trim() || '',
             url: url?.trim() || '',
             platform: platform?.trim() || '',
             addedAt: new Date().toISOString()

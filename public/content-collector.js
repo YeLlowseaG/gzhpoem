@@ -65,6 +65,7 @@ class ContentCollector {
     // 账号管理
     async addAccount() {
         const name = document.getElementById('accountName').value.trim();
+        const accountId = document.getElementById('accountId').value.trim();
         const url = document.getElementById('accountUrl').value.trim();
         const platform = document.getElementById('accountPlatform').value.trim();
 
@@ -81,7 +82,7 @@ class ContentCollector {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ name, url, platform })
+                body: JSON.stringify({ name, accountId, url, platform })
             });
 
             const data = await response.json();
@@ -89,6 +90,7 @@ class ContentCollector {
             if (data.success) {
                 this.showMessage('账号添加成功！', 'success');
                 document.getElementById('accountName').value = '';
+                document.getElementById('accountId').value = '';
                 document.getElementById('accountUrl').value = '';
                 document.getElementById('accountPlatform').value = '';
                 await this.loadAccounts();
@@ -147,6 +149,9 @@ class ContentCollector {
                             </button>
                         </div>
                         ${account.platform ? `<span class="badge bg-primary mb-2">${account.platform}</span><br>` : ''}
+                        ${account.accountId ? `<p class="card-text text-muted small mb-1">
+                            <i class="bi bi-person-badge"></i> ID: ${account.accountId}
+                        </p>` : ''}
                         ${account.url ? `<p class="card-text text-muted small mb-2">
                             <a href="${account.url}" target="_blank" class="text-decoration-none">
                                 <i class="bi bi-link-45deg"></i> 查看链接

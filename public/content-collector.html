@@ -120,15 +120,19 @@
                         </h5>
                         
                         <div class="row mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <input type="text" id="accountName" class="form-control" 
                                        placeholder="账号名称（必填）">
+                            </div>
+                            <div class="col-md-2">
+                                <input type="text" id="accountId" class="form-control" 
+                                       placeholder="账号ID（可选）">
                             </div>
                             <div class="col-md-3">
                                 <input type="text" id="accountUrl" class="form-control" 
                                        placeholder="账号链接（可选）">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <select id="accountPlatform" class="form-select">
                                     <option value="">选择平台（可选）</option>
                                     <option value="微信公众号">微信公众号</option>
@@ -268,6 +272,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="content-collector.js?v=4"></script>
+    <script src="content-collector.js?v=5"></script>
 </body>
 </html>
