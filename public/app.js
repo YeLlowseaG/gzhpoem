@@ -704,9 +704,6 @@ class PoemApp {
             html += `<div class="baokuan-metadata"><strong>原文标题：</strong>${result.originTitle}</div>`;
         }
         
-        if (result.originSummary) {
-            html += `<div class="baokuan-metadata"><strong>原文摘要：</strong>${result.originSummary}</div>`;
-        }
         
         if (result.topic) {
             html += `<div class="baokuan-metadata"><strong>爆款选题：</strong>${result.topic}</div>`;
