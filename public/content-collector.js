@@ -535,13 +535,25 @@ class ContentCollector {
                 ` : ''}
                 ${article.imageTexts && article.imageTexts.length > 0 ? `
                     <hr>
-                    <h4 class="mt-4">📝 图片文字内容:</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mt-2 mb-0">📝 图片文字内容:</h4>
+                        <button class="btn btn-success btn-sm" onclick="collector.copyAllOCRText('${article.id}')">
+                            <i class="bi bi-clipboard"></i> 复制全部文字
+                        </button>
+                    </div>
                     <div class="image-texts-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; background-color: #f8f9fa;">
                         ${article.imageTexts.map(imageText => `
                             <div class="image-text-item mb-4">
-                                <div class="d-flex align-items-center mb-2">
-                                    <span class="badge bg-primary me-2">图片 ${imageText.index}</span>
-                                    ${imageText.confidence > 0 ? `<small class="text-success">识别成功</small>` : `<small class="text-danger">识别失败</small>`}
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div>
+                                        <span class="badge bg-primary me-2">图片 ${imageText.index}</span>
+                                        ${imageText.confidence > 0 ? `<small class="text-success">识别成功</small>` : `<small class="text-danger">识别失败</small>`}
+                                    </div>
+                                    ${imageText.confidence > 0 ? `
+                                        <button class="btn btn-outline-success btn-sm" onclick="collector.copyOCRTextByIndex('${article.id}', ${imageText.index})">
+                                            <i class="bi bi-clipboard"></i> 复制
+                                        </button>
+                                    ` : ''}
                                 </div>
                                 <div class="image-text-content p-3 border rounded" style="background-color: white; white-space: pre-wrap;">
                                     ${imageText.text}
@@ -665,13 +677,25 @@ class ContentCollector {
             ` : ''}
             ${article.imageTexts && article.imageTexts.length > 0 ? `
                 <hr>
-                <h6>📝 图片文字内容:</h6>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">📝 图片文字内容:</h6>
+                    <button class="btn btn-success btn-sm" onclick="collector.copyAllOCRText('${article.id}')" style="font-size: 0.75em;">
+                        <i class="bi bi-clipboard"></i> 复制全部
+                    </button>
+                </div>
                 <div class="image-texts-container" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 10px; background-color: #f8f9fa;">
                     ${article.imageTexts.map(imageText => `
                         <div class="image-text-item mb-3">
-                            <div class="d-flex align-items-center mb-1">
-                                <span class="badge bg-primary me-2" style="font-size: 0.7em;">图片 ${imageText.index}</span>
-                                ${imageText.confidence > 0 ? `<small class="text-success" style="font-size: 0.7em;">识别成功</small>` : `<small class="text-danger" style="font-size: 0.7em;">识别失败</small>`}
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <div>
+                                    <span class="badge bg-primary me-2" style="font-size: 0.7em;">图片 ${imageText.index}</span>
+                                    ${imageText.confidence > 0 ? `<small class="text-success" style="font-size: 0.7em;">识别成功</small>` : `<small class="text-danger" style="font-size: 0.7em;">识别失败</small>`}
+                                </div>
+                                ${imageText.confidence > 0 ? `
+                                    <button class="btn btn-outline-success btn-sm" onclick="collector.copyOCRTextByIndex('${article.id}', ${imageText.index})" style="font-size: 0.7em; padding: 2px 6px;">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                ` : ''}
                             </div>
                             <div class="image-text-content p-2 border rounded" style="background-color: white; white-space: pre-wrap; font-size: 0.85em;">
                                 ${imageText.text}
@@ -685,6 +709,75 @@ class ContentCollector {
         this.articleModal.show();
     }
 
+    // OCR文字复制功能
+    async copyOCRTextByIndex(articleId, index) {
+        const article = this.articles.find(a => a.id === articleId);
+        if (!article || !article.imageTexts) {
+            this.showMessage('未找到OCR文字内容', 'warning');
+            return;
+        }
+
+        const imageText = article.imageTexts.find(item => item.index === index);
+        if (!imageText || imageText.confidence <= 0) {
+            this.showMessage('该图片未识别到文字内容', 'warning');
+            return;
+        }
+
+        await this.copyTextToClipboard(imageText.text, `图片${index}的文字已复制到剪贴板！`);
+    }
+
+    async copyAllOCRText(articleId) {
+        const article = this.articles.find(a => a.id === articleId);
+        if (!article || !article.imageTexts || article.imageTexts.length === 0) {
+            this.showMessage('未找到OCR文字内容', 'warning');
+            return;
+        }
+
+        // 只复制识别成功的文字
+        const successfulTexts = article.imageTexts
+            .filter(item => item.confidence > 0)
+            .map(item => `【图片${item.index}】\n${item.text}`)
+            .join('\n\n');
+
+        if (successfulTexts.length === 0) {
+            this.showMessage('没有成功识别的文字内容', 'warning');
+            return;
+        }
+
+        await this.copyTextToClipboard(successfulTexts, '所有OCR文字已复制到剪贴板！');
+    }
+
+    async copyTextToClipboard(text, successMessage) {
+        try {
+            // 使用现代浏览器的Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                this.showMessage(successMessage, 'success');
+            } else {
+                // 兼容旧浏览器的方法
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    this.showMessage(successMessage, 'success');
+                } catch (err) {
+                    this.showMessage('复制失败，请手动复制', 'danger');
+                }
+                
+                document.body.removeChild(textArea);
+            }
+        } catch (error) {
+            console.error('复制失败:', error);
+            this.showMessage('复制失败，请稍后重试', 'danger');
+        }
+    }
 
     async removeArticle(articleId) {
         if (!confirm('确定要删除这篇文章吗？')) {
