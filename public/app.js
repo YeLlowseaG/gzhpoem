@@ -17,7 +17,7 @@ class PoemApp {
         await this.checkServiceStatus();
         await this.loadConfig();
         await this.loadRecentArticles();
-        this.initializePrompts();
+        await this.initializePrompts();
     }
 
     getDefaultPrompts() {
@@ -311,19 +311,48 @@ class PoemApp {
         };
     }
 
-    initializePrompts() {
-        // 从本地存储或配置中加载用户自定义提示词
-        const savedPrompts = localStorage.getItem('custom-prompts');
-        if (savedPrompts) {
-            try {
-                this.prompts = { ...this.prompts, ...JSON.parse(savedPrompts) };
-            } catch (error) {
-                console.error('加载自定义提示词失败:', error);
+    async initializePrompts() {
+        // 优先从服务器加载用户自定义提示词
+        try {
+            const response = await fetch('/api/prompts');
+            const data = await response.json();
+            
+            if (data.success && Object.keys(data.data).length > 0) {
+                // 合并服务器端的自定义提示词
+                this.prompts = { ...this.prompts, ...data.data };
+                console.log('✅ 从服务器加载自定义提示词');
+            } else {
+                // 如果服务器没有自定义提示词，尝试从本地存储迁移
+                await this.migrateLocalPrompts();
             }
+        } catch (error) {
+            console.warn('从服务器加载提示词失败，尝试本地存储:', error);
+            // 服务器加载失败时，回退到本地存储
+            await this.migrateLocalPrompts();
         }
         
         // 初始化设置页面的提示词内容
         this.updatePromptTextareas();
+    }
+
+    async migrateLocalPrompts() {
+        // 从本地存储迁移提示词到服务器
+        const savedPrompts = localStorage.getItem('custom-prompts');
+        if (savedPrompts) {
+            try {
+                const localPrompts = JSON.parse(savedPrompts);
+                this.prompts = { ...this.prompts, ...localPrompts };
+                
+                // 尝试迁移到服务器
+                await this.savePromptsToServer(localPrompts);
+                
+                // 迁移成功后清除本地存储
+                localStorage.removeItem('custom-prompts');
+                console.log('✅ 本地提示词已迁移到服务器');
+            } catch (error) {
+                console.error('迁移本地提示词失败:', error);
+            }
+        }
     }
 
     updatePromptTextareas() {
@@ -1882,13 +1911,27 @@ function savePoetryPrompt() {
     app.showToast('success', '诗词赏析提示词已保存');
 }
 
-function resetPoetryPrompt() {
+async function resetPoetryPrompt() {
     if (confirm('确定要恢复默认的诗词赏析提示词吗？')) {
         const defaultPrompts = app.getDefaultPrompts();
+        
+        // 更新本地数据
+        app.prompts.poetry_structured = defaultPrompts.poetry_structured;
+        app.prompts.poetry_narrative = defaultPrompts.poetry_narrative;
+        app.prompts.poetry_title = defaultPrompts.poetry_title;
+        
+        // 更新UI
         document.getElementById('poetryStructuredTemplate').value = defaultPrompts.poetry_structured;
         document.getElementById('poetryNarrativeTemplate').value = defaultPrompts.poetry_narrative;
         document.getElementById('poetryTitleTemplate').value = defaultPrompts.poetry_title;
-        app.showToast('info', '已恢复默认提示词');
+        
+        // 保存到服务器
+        try {
+            await app.savePromptsToServer(app.prompts);
+            app.showToast('success', '诗词赏析提示词已重置为默认');
+        } catch (error) {
+            app.showToast('error', '重置失败: ' + error.message);
+        }
     }
 }
 
@@ -1913,15 +1956,27 @@ function saveBaokuanPrompts() {
     app.showToast('success', '爆款文提示词已保存');
 }
 
-function resetBaokuanPrompts() {
+async function resetBaokuanPrompts() {
     if (confirm('确定要恢复默认的爆款文提示词吗？')) {
         const defaultPrompts = app.getDefaultPrompts();
+        
+        // 更新本地数据
+        app.prompts.baokuan = { ...defaultPrompts.baokuan };
+        
+        // 更新UI
         document.getElementById('baokuanExtractTitleTemplate').value = defaultPrompts.baokuan.extractTitle;
         document.getElementById('baokuanExtractTopicTemplate').value = defaultPrompts.baokuan.extractTopic;
         document.getElementById('baokuanExtractTemplate').value = defaultPrompts.baokuan.extract;
         document.getElementById('baokuanGenerateTemplate').value = defaultPrompts.baokuan.generate;
         document.getElementById('baokuanFormatTemplate').value = defaultPrompts.baokuan.format;
-        app.showToast('info', '已恢复默认提示词');
+        
+        // 保存到服务器
+        try {
+            await app.savePromptsToServer(app.prompts);
+            app.showToast('success', '爆款文提示词已重置为默认');
+        } catch (error) {
+            app.showToast('error', '重置失败: ' + error.message);
+        }
     }
 }
 
@@ -2886,12 +2941,28 @@ PoemApp.prototype.refreshServerIp = async function() {
     }
 };
 
-PoemApp.prototype.savePrompts = function() {
+PoemApp.prototype.savePrompts = async function() {
     try {
-        localStorage.setItem('custom-prompts', JSON.stringify(this.prompts));
-        console.log('提示词已保存到本地存储');
+        await this.savePromptsToServer(this.prompts);
+        console.log('✅ 提示词已保存到服务器');
     } catch (error) {
         console.error('保存提示词失败:', error);
-        this.showToast('error', '保存提示词失败');
+        this.showToast('error', '保存提示词失败: ' + error.message);
     }
+};
+
+PoemApp.prototype.savePromptsToServer = async function(prompts) {
+    const response = await fetch('/api/prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prompts)
+    });
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+        throw new Error(data.error || '保存失败');
+    }
+    
+    return data;
 };

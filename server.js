@@ -1171,6 +1171,73 @@ app.post('/api/config', async (req, res) => {
     }
 });
 
+// ==================== 提示词管理 ====================
+
+// 获取自定义提示词
+app.get('/api/prompts', async (req, res) => {
+    try {
+        const prompts = await storageService.get('custom-prompts') || {};
+        res.json({
+            success: true,
+            data: prompts
+        });
+    } catch (error) {
+        console.error('获取提示词失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取提示词失败'
+        });
+    }
+});
+
+// 保存自定义提示词
+app.post('/api/prompts', async (req, res) => {
+    try {
+        const prompts = req.body;
+        
+        // 验证提示词数据格式
+        if (!prompts || typeof prompts !== 'object') {
+            return res.status(400).json({
+                success: false,
+                error: '提示词数据格式不正确'
+            });
+        }
+        
+        await storageService.set('custom-prompts', prompts);
+        
+        console.log('✅ 提示词已保存到服务器');
+        res.json({
+            success: true,
+            message: '提示词保存成功'
+        });
+    } catch (error) {
+        console.error('保存提示词失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '保存提示词失败'
+        });
+    }
+});
+
+// 重置提示词为默认
+app.delete('/api/prompts', async (req, res) => {
+    try {
+        await storageService.delete('custom-prompts');
+        
+        console.log('✅ 提示词已重置为默认');
+        res.json({
+            success: true,
+            message: '提示词已重置为默认'
+        });
+    } catch (error) {
+        console.error('重置提示词失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '重置提示词失败'
+        });
+    }
+});
+
 // ==================== 统计和监控 ====================
 
 // 获取使用统计
@@ -1839,6 +1906,9 @@ app.listen(PORT, async () => {
     console.log(`   POST /api/wechat/test           - 测试微信`);
     console.log(`   POST /api/wechat/upload         - 上传文章`);
     console.log(`   GET  /api/config                - 获取配置`);
+    console.log(`   GET  /api/prompts               - 获取自定义提示词`);
+    console.log(`   POST /api/prompts               - 保存自定义提示词`);
+    console.log(`   DELETE /api/prompts             - 重置提示词为默认`);
     console.log(`   GET  /api/stats                 - 使用统计`);
     console.log(`   GET  /health                    - 健康检查\n`);
 });

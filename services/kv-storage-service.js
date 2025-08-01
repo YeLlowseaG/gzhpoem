@@ -241,6 +241,14 @@ class KVStorageService {
             this.memoryStorage[key] = value;
         }
     }
+
+    async delete(key) {
+        if (this.isRedisAvailable) {
+            await this.redis.del(key);
+        } else {
+            delete this.memoryStorage[key];
+        }
+    }
 }
 
 module.exports = KVStorageService;
