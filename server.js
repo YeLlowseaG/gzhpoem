@@ -391,6 +391,33 @@ app.post('/api/ocr/extract', async (req, res) => {
 });
 
 /**
+ * 从URL下载图片并转换为base64
+ */
+async function downloadImageToBase64(imageUrl) {
+    try {
+        console.log(`⬇️ 下载图片: ${imageUrl.substring(0, 50)}...`);
+        
+        const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 15000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+        
+        // 转换为base64
+        const imageBase64 = Buffer.from(response.data).toString('base64');
+        console.log(`✅ 图片下载成功，大小: ${Math.round(response.data.length / 1024)}KB`);
+        
+        return imageBase64;
+        
+    } catch (error) {
+        console.error(`❌ 图片下载失败: ${error.message}`);
+        throw new Error(`图片下载失败: ${error.message}`);
+    }
+}
+
+/**
  * 执行OCR文字识别
  */
 async function performOCR(imageBase64) {
@@ -1463,8 +1490,9 @@ app.post('/api/collected-articles', async (req, res) => {
                                         console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}: ${imageUrl.substring(0, 50)}...`);
                                         
                                         try {
-                                            // 调用OCR功能
-                                            const ocrResult = await performOCR(imageUrl);
+                                            // 先下载图片转换为base64，再调用OCR
+                                            const imageBase64 = await downloadImageToBase64(imageUrl);
+                                            const ocrResult = await performOCR(imageBase64);
                                             
                                             if (ocrResult.success && ocrResult.text) {
                                                 article.imageTexts.push({
@@ -1484,11 +1512,18 @@ app.post('/api/collected-articles', async (req, res) => {
                                                 console.log(`❌ 图片${i + 1}识别失败`);
                                             }
                                         } catch (ocrError) {
-                                            console.error(`❌ 图片${i + 1}OCR处理异常:`, ocrError.message);
+                                            console.error(`❌ 图片${i + 1}处理异常:`, ocrError.message);
+                                            let errorText = '识别异常';
+                                            if (ocrError.message.includes('图片下载失败')) {
+                                                errorText = '图片下载失败';
+                                            } else if (ocrError.message.includes('OCR')) {
+                                                errorText = 'OCR识别失败';
+                                            }
+                                            
                                             article.imageTexts.push({
                                                 index: i + 1,
                                                 imageUrl: imageUrl,
-                                                text: '识别异常',
+                                                text: errorText,
                                                 confidence: 0
                                             });
                                         }
@@ -1628,8 +1663,8 @@ app.post('/api/collected-articles', async (req, res) => {
                 };
             }
             
-            // 如果有图片，进行OCR识别（不区分小红书还是其他平台）
-            if (article && article.images && article.images.length > 0) {
+            // 如果有图片，并且还没有进行OCR识别，才进行OCR识别
+            if (article && article.images && article.images.length > 0 && article.imageTexts.length === 0) {
                 console.log(`🔍 通用解析：开始OCR识别 ${article.images.length} 张图片...`);
                 
                 for (let i = 0; i < article.images.length; i++) {
@@ -1637,8 +1672,9 @@ app.post('/api/collected-articles', async (req, res) => {
                     console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}: ${imageUrl.substring(0, 50)}...`);
                     
                     try {
-                        // 调用OCR功能
-                        const ocrResult = await performOCR(imageUrl);
+                        // 先下载图片转换为base64，再调用OCR
+                        const imageBase64 = await downloadImageToBase64(imageUrl);
+                        const ocrResult = await performOCR(imageBase64);
                         
                         if (ocrResult.success && ocrResult.text) {
                             article.imageTexts.push({
@@ -1658,11 +1694,18 @@ app.post('/api/collected-articles', async (req, res) => {
                             console.log(`❌ 图片${i + 1}识别失败`);
                         }
                     } catch (ocrError) {
-                        console.error(`❌ 图片${i + 1}OCR处理异常:`, ocrError.message);
+                        console.error(`❌ 图片${i + 1}处理异常:`, ocrError.message);
+                        let errorText = '识别异常';
+                        if (ocrError.message.includes('图片下载失败')) {
+                            errorText = '图片下载失败';
+                        } else if (ocrError.message.includes('OCR')) {
+                            errorText = 'OCR识别失败';
+                        }
+                        
                         article.imageTexts.push({
                             index: i + 1,
                             imageUrl: imageUrl,
-                            text: '识别异常',
+                            text: errorText,
                             confidence: 0
                         });
                     }
