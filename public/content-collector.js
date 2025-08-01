@@ -533,6 +533,23 @@ class ContentCollector {
                         `).join('')}
                     </div>
                 ` : ''}
+                ${article.imageTexts && article.imageTexts.length > 0 ? `
+                    <hr>
+                    <h4 class="mt-4">📝 图片文字内容:</h4>
+                    <div class="image-texts-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; background-color: #f8f9fa;">
+                        ${article.imageTexts.map(imageText => `
+                            <div class="image-text-item mb-4">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-primary me-2">图片 ${imageText.index}</span>
+                                    ${imageText.confidence > 0 ? `<small class="text-success">识别成功</small>` : `<small class="text-danger">识别失败</small>`}
+                                </div>
+                                <div class="image-text-content p-3 border rounded" style="background-color: white; white-space: pre-wrap;">
+                                    ${imageText.text}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
             </div>
         `;
         
@@ -641,6 +658,23 @@ class ContentCollector {
                                         </a>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
+            ${article.imageTexts && article.imageTexts.length > 0 ? `
+                <hr>
+                <h6>📝 图片文字内容:</h6>
+                <div class="image-texts-container" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 5px; padding: 10px; background-color: #f8f9fa;">
+                    ${article.imageTexts.map(imageText => `
+                        <div class="image-text-item mb-3">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="badge bg-primary me-2" style="font-size: 0.7em;">图片 ${imageText.index}</span>
+                                ${imageText.confidence > 0 ? `<small class="text-success" style="font-size: 0.7em;">识别成功</small>` : `<small class="text-danger" style="font-size: 0.7em;">识别失败</small>`}
+                            </div>
+                            <div class="image-text-content p-2 border rounded" style="background-color: white; white-space: pre-wrap; font-size: 0.85em;">
+                                ${imageText.text}
                             </div>
                         </div>
                     `).join('')}

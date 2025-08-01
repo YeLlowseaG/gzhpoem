@@ -1433,6 +1433,7 @@ app.post('/api/collected-articles', async (req, res) => {
                                 // 格式化互动数据
                                 const interactInfo = note.interactInfo || {};
                                 
+                                // 基础文章信息
                                 article = {
                                     id: Date.now().toString(),
                                     title: note.title || note.desc?.substring(0, 50) + '...' || '小红书文章',
@@ -1449,8 +1450,52 @@ app.post('/api/collected-articles', async (req, res) => {
                                     commentCount: interactInfo.commentCount || null,
                                     collectedCount: interactInfo.collectedCount || null,
                                     location: note.ipLocation || '',
-                                    tags: note.tagList?.map(tag => tag.name) || []
+                                    tags: note.tagList?.map(tag => tag.name) || [],
+                                    imageTexts: [] // 存储图片OCR结果
                                 };
+                                
+                                // 对图片进行OCR识别
+                                if (article.images.length > 0) {
+                                    console.log(`🔍 开始OCR识别 ${article.images.length} 张图片...`);
+                                    
+                                    for (let i = 0; i < article.images.length; i++) {
+                                        const imageUrl = article.images[i];
+                                        console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}: ${imageUrl.substring(0, 50)}...`);
+                                        
+                                        try {
+                                            // 调用OCR功能
+                                            const ocrResult = await performOCR(imageUrl);
+                                            
+                                            if (ocrResult.success && ocrResult.text) {
+                                                article.imageTexts.push({
+                                                    index: i + 1,
+                                                    imageUrl: imageUrl,
+                                                    text: ocrResult.text.trim(),
+                                                    confidence: ocrResult.confidence || 0.8
+                                                });
+                                                console.log(`✅ 图片${i + 1}识别成功，文字长度: ${ocrResult.text.length}`);
+                                            } else {
+                                                article.imageTexts.push({
+                                                    index: i + 1,
+                                                    imageUrl: imageUrl,
+                                                    text: '识别失败',
+                                                    confidence: 0
+                                                });
+                                                console.log(`❌ 图片${i + 1}识别失败`);
+                                            }
+                                        } catch (ocrError) {
+                                            console.error(`❌ 图片${i + 1}OCR处理异常:`, ocrError.message);
+                                            article.imageTexts.push({
+                                                index: i + 1,
+                                                imageUrl: imageUrl,
+                                                text: '识别异常',
+                                                confidence: 0
+                                            });
+                                        }
+                                    }
+                                    
+                                    console.log(`🎉 OCR识别完成，成功识别: ${article.imageTexts.filter(t => t.confidence > 0).length}/${article.images.length} 张`);
+                                }
                             }
                         }
                     } catch (jsonError) {
@@ -1578,8 +1623,52 @@ app.post('/api/collected-articles', async (req, res) => {
                     images: images, // 添加图片链接数组
                     addedAt: new Date().toISOString(),
                     tags: [],
-                    location: ''
+                    location: '',
+                    imageTexts: [] // 存储图片OCR结果
                 };
+            }
+            
+            // 如果有图片，进行OCR识别（不区分小红书还是其他平台）
+            if (article && article.images && article.images.length > 0) {
+                console.log(`🔍 通用解析：开始OCR识别 ${article.images.length} 张图片...`);
+                
+                for (let i = 0; i < article.images.length; i++) {
+                    const imageUrl = article.images[i];
+                    console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}: ${imageUrl.substring(0, 50)}...`);
+                    
+                    try {
+                        // 调用OCR功能
+                        const ocrResult = await performOCR(imageUrl);
+                        
+                        if (ocrResult.success && ocrResult.text) {
+                            article.imageTexts.push({
+                                index: i + 1,
+                                imageUrl: imageUrl,
+                                text: ocrResult.text.trim(),
+                                confidence: ocrResult.confidence || 0.8
+                            });
+                            console.log(`✅ 图片${i + 1}识别成功，文字长度: ${ocrResult.text.length}`);
+                        } else {
+                            article.imageTexts.push({
+                                index: i + 1,
+                                imageUrl: imageUrl,
+                                text: '识别失败',
+                                confidence: 0
+                            });
+                            console.log(`❌ 图片${i + 1}识别失败`);
+                        }
+                    } catch (ocrError) {
+                        console.error(`❌ 图片${i + 1}OCR处理异常:`, ocrError.message);
+                        article.imageTexts.push({
+                            index: i + 1,
+                            imageUrl: imageUrl,
+                            text: '识别异常',
+                            confidence: 0
+                        });
+                    }
+                }
+                
+                console.log(`🎉 通用OCR识别完成，成功识别: ${article.imageTexts.filter(t => t.confidence > 0).length}/${article.images.length} 张`);
             }
 
             // 保存文章
