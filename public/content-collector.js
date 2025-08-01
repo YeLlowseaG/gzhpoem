@@ -129,9 +129,10 @@ class ContentCollector {
         if (this.accounts.length === 0) {
             container.innerHTML = `
                 <div class="col-12">
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-person-plus display-6"></i>
-                        <p class="mt-2">暂无监控账号，请添加账号开始收集内容</p>
+                    <div class="empty-state">
+                        <i class="bi bi-person-plus"></i>
+                        <h6>暂无监控账号</h6>
+                        <p class="mb-0">请添加账号开始收集内容</p>
                     </div>
                 </div>
             `;
@@ -389,9 +390,10 @@ class ContentCollector {
         
         if (articles.length === 0) {
             container.innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-journal-x display-4"></i>
-                    <p class="mt-2">暂无文章，请添加文章链接开始收集</p>
+                <div class="empty-state">
+                    <i class="bi bi-journal-x"></i>
+                    <h6>暂无收集的文章</h6>
+                    <p class="mb-0">请添加文章链接开始收集内容</p>
                 </div>
             `;
             return;
