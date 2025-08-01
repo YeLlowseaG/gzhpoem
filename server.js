@@ -367,55 +367,94 @@ app.post('/api/ocr/prepare', async (req, res) => {
 /**
  * 使用OCR.space API进行图片文字识别
  */
-async function performOCR(imageUrl, index = 1) {
-    try {
-        console.log(`🔍 开始OCR识别图片 ${index}: ${imageUrl.substring(0, 50)}...`);
-        
-        // 使用OCR.space免费API
-        const response = await axios.post('https://api.ocr.space/parse/image', {
-            url: imageUrl,
-            language: 'chs', // 中文简体
-            apikey: 'K87899142388957', // 免费公共API Key
-            isOverlayRequired: false,
-            detectOrientation: true,
-            isTable: false
-        }, {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            timeout: 30000
-        });
-        
-        console.log(`✅ 图片 ${index} OCR API调用成功`);
-        
-        if (response.data && response.data.ParsedResults && response.data.ParsedResults.length > 0) {
-            const result = response.data.ParsedResults[0];
-            const extractedText = result.ParsedText ? result.ParsedText.trim() : '';
+async function performOCR(imageUrl, index = 1, retries = 2) {
+    console.log(`🔍 开始OCR识别图片 ${index}: ${imageUrl.substring(0, 50)}...`);
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            if (attempt > 1) {
+                console.log(`🔄 图片 ${index} 第 ${attempt} 次重试...`);
+                // 重试前等待一下
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
             
-            console.log(`📄 图片 ${index} 识别完成，文字长度: ${extractedText.length}`);
+            // 使用OCR.space免费API，减少超时时间
+            const response = await axios.post('https://api.ocr.space/parse/image', {
+                url: imageUrl,
+                language: 'chs', // 中文简体
+                apikey: 'K87899142388957', // 免费公共API Key
+                isOverlayRequired: false,
+                detectOrientation: true,
+                isTable: false
+            }, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                timeout: 15000 // 减少到15秒超时
+            });
             
-            return {
-                success: extractedText.length > 0,
-                text: extractedText.length > 0 ? extractedText : '未识别到文字内容',
-                confidence: extractedText.length > 0 ? 0.9 : 0
-            };
-        } else {
-            console.error(`❌ 图片 ${index} OCR返回格式异常:`, response.data);
+            console.log(`✅ 图片 ${index} OCR API调用成功 (第${attempt}次尝试)`);
+            
+            if (response.data && response.data.ParsedResults && response.data.ParsedResults.length > 0) {
+                const result = response.data.ParsedResults[0];
+                
+                // 检查是否有错误信息
+                if (result.ErrorMessage) {
+                    console.warn(`⚠️ 图片 ${index} OCR警告: ${result.ErrorMessage}`);
+                    if (result.ErrorMessage.includes('Unable to get file')) {
+                        throw new Error('图片无法访问，可能被防盗链保护');
+                    }
+                }
+                
+                const extractedText = result.ParsedText ? result.ParsedText.trim() : '';
+                
+                console.log(`📄 图片 ${index} 识别完成，文字长度: ${extractedText.length}`);
+                
+                return {
+                    success: extractedText.length > 0,
+                    text: extractedText.length > 0 ? extractedText : '未识别到文字内容',
+                    confidence: extractedText.length > 0 ? 0.9 : 0
+                };
+            } else {
+                console.error(`❌ 图片 ${index} OCR返回格式异常:`, response.data);
+                if (attempt === retries) {
+                    return {
+                        success: false,
+                        text: 'OCR服务返回格式异常',
+                        confidence: 0
+                    };
+                }
+                continue; // 继续重试
+            }
+            
+        } catch (error) {
+            console.error(`❌ 图片 ${index} OCR识别失败 (第${attempt}次尝试):`, error.message);
+            
+            // 如果是超时或网络错误，且还有重试次数，则继续重试
+            if (attempt < retries && (
+                error.code === 'ECONNABORTED' || 
+                error.message.includes('timeout') ||
+                error.message.includes('ENOTFOUND') ||
+                error.message.includes('ECONNRESET')
+            )) {
+                continue;
+            }
+            
+            // 最后一次失败或不可重试的错误
             return {
                 success: false,
-                text: 'OCR服务返回格式异常',
+                text: `OCR识别失败: ${error.message}`,
                 confidence: 0
             };
         }
-        
-    } catch (error) {
-        console.error(`❌ 图片 ${index} OCR识别失败:`, error.message);
-        return {
-            success: false,
-            text: `OCR识别失败: ${error.message}`,
-            confidence: 0
-        };
     }
+    
+    // 所有重试都失败了
+    return {
+        success: false,
+        text: `OCR识别失败: 重试${retries}次均失败`,
+        confidence: 0
+    };
 }
 
 // ==================== 爆款文相关接口 ====================
@@ -1441,22 +1480,49 @@ app.post('/api/collected-articles', async (req, res) => {
                                 if (article.images.length > 0) {
                                     console.log(`🔍 开始OCR识别 ${article.images.length} 张图片...`);
                                     
-                                    for (let i = 0; i < article.images.length; i++) {
-                                        const imageUrl = article.images[i];
-                                        console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}...`);
-                                        
-                                        const ocrResult = await performOCR(imageUrl, i + 1);
-                                        
-                                        article.imageTexts.push({
-                                            index: i + 1,
-                                            imageUrl: imageUrl,
-                                            text: ocrResult.text,
-                                            confidence: ocrResult.confidence
+                                    // 限制并发数量，避免API压力过大
+                                    const maxConcurrent = 2; // 最多同时处理2张图片
+                                    const chunks = [];
+                                    
+                                    // 将图片分组
+                                    for (let i = 0; i < article.images.length; i += maxConcurrent) {
+                                        chunks.push(article.images.slice(i, i + maxConcurrent));
+                                    }
+                                    
+                                    let processedCount = 0;
+                                    
+                                    // 逐批处理图片
+                                    for (const chunk of chunks) {
+                                        const promises = chunk.map(async (imageUrl, chunkIndex) => {
+                                            const globalIndex = processedCount + chunkIndex + 1;
+                                            console.log(`📷 正在识别图片 ${globalIndex}/${article.images.length}...`);
+                                            
+                                            const ocrResult = await performOCR(imageUrl, globalIndex);
+                                            
+                                            return {
+                                                index: globalIndex,
+                                                imageUrl: imageUrl,
+                                                text: ocrResult.text,
+                                                confidence: ocrResult.confidence
+                                            };
                                         });
+                                        
+                                        // 等待这批完成
+                                        const results = await Promise.all(promises);
+                                        article.imageTexts.push(...results);
+                                        processedCount += chunk.length;
+                                        
+                                        // 批次间稍微等待一下
+                                        if (processedCount < article.images.length) {
+                                            await new Promise(resolve => setTimeout(resolve, 500));
+                                        }
                                     }
                                     
                                     const successCount = article.imageTexts.filter(t => t.confidence > 0).length;
                                     console.log(`🎉 OCR识别完成，成功识别: ${successCount}/${article.images.length} 张`);
+                                    
+                                    // 按index排序，确保顺序正确
+                                    article.imageTexts.sort((a, b) => a.index - b.index);
                                 }
                             }
                         }
@@ -1594,22 +1660,49 @@ app.post('/api/collected-articles', async (req, res) => {
             if (article && article.images && article.images.length > 0 && article.imageTexts.length === 0) {
                 console.log(`🔍 通用解析：开始OCR识别 ${article.images.length} 张图片...`);
                 
-                for (let i = 0; i < article.images.length; i++) {
-                    const imageUrl = article.images[i];
-                    console.log(`📷 正在识别图片 ${i + 1}/${article.images.length}...`);
-                    
-                    const ocrResult = await performOCR(imageUrl, i + 1);
-                    
-                    article.imageTexts.push({
-                        index: i + 1,
-                        imageUrl: imageUrl,
-                        text: ocrResult.text,
-                        confidence: ocrResult.confidence
+                // 限制并发数量，避免API压力过大
+                const maxConcurrent = 2; // 最多同时处理2张图片
+                const chunks = [];
+                
+                // 将图片分组
+                for (let i = 0; i < article.images.length; i += maxConcurrent) {
+                    chunks.push(article.images.slice(i, i + maxConcurrent));
+                }
+                
+                let processedCount = 0;
+                
+                // 逐批处理图片
+                for (const chunk of chunks) {
+                    const promises = chunk.map(async (imageUrl, chunkIndex) => {
+                        const globalIndex = processedCount + chunkIndex + 1;
+                        console.log(`📷 通用解析：正在识别图片 ${globalIndex}/${article.images.length}...`);
+                        
+                        const ocrResult = await performOCR(imageUrl, globalIndex);
+                        
+                        return {
+                            index: globalIndex,
+                            imageUrl: imageUrl,
+                            text: ocrResult.text,
+                            confidence: ocrResult.confidence
+                        };
                     });
+                    
+                    // 等待这批完成
+                    const results = await Promise.all(promises);
+                    article.imageTexts.push(...results);
+                    processedCount += chunk.length;
+                    
+                    // 批次间稍微等待一下
+                    if (processedCount < article.images.length) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
                 }
                 
                 const successCount = article.imageTexts.filter(t => t.confidence > 0).length;
                 console.log(`🎉 通用OCR识别完成，成功识别: ${successCount}/${article.images.length} 张`);
+                
+                // 按index排序，确保顺序正确
+                article.imageTexts.sort((a, b) => a.index - b.index);
             }
 
             // 保存文章
