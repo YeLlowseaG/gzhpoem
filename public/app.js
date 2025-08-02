@@ -41,7 +41,7 @@ class PoemApp {
 
 ### 诗词原文展示
 - 完整准确的诗词原文（单独成段）
-- 简洁的创作时间/地点信息（另起一段）
+- 只显示诗词原文，不要添加创作时间和地点信息
 
 ### 创作背景（200字，分3段）
 **第一段**：诗人当时的人生境遇（约70字）
@@ -69,7 +69,7 @@ class PoemApp {
 **第一段**：回扣开头，形成呼应（约75字）
 **第二段**：用诗意语言升华主题（约75字）
 
-让读者意犹未尽
+注意：结尾要自然收束，不要使用"愿你我..."、"希望我们..."等祝福式表达，让读者意犹未尽
 
 ## 写作技巧要求：
 - **语言生动**：多用比喻、排比等修辞手法
@@ -129,6 +129,7 @@ class PoemApp {
 
 ### 结尾升华（200字，1段）
 - 总结全文，升华主题，给读者启发和共鸣
+- 注意：结尾要自然收束，不要使用"愿你我..."、"希望我们..."等祝福式表达
 
 ## 写作要求：
 - 使用自然的过渡语句连接各部分，避免突兀的内容转换
@@ -169,7 +170,7 @@ class PoemApp {
 
 ### 诗词原文展示
 - 完整准确的诗词原文（单独成段）
-- 简洁的创作时间/地点信息（另起一段）
+- 只显示诗词原文，不要添加创作时间和地点信息
 
 ### 创作背景（200字，分3段）
 **第一段**：诗人当时的人生境遇（约70字）
@@ -197,7 +198,7 @@ class PoemApp {
 **第一段**：回扣开头，形成呼应（约75字）
 **第二段**：用诗意语言升华主题（约75字）
 
-让读者意犹未尽
+注意：结尾要自然收束，不要使用"愿你我..."、"希望我们..."等祝福式表达，让读者意犹未尽
 
 ## 写作技巧要求：
 - **语言生动**：多用比喻、排比等修辞手法
@@ -318,17 +319,19 @@ class PoemApp {
             const data = await response.json();
             
             if (data.success && Object.keys(data.data).length > 0) {
-                // 合并服务器端的自定义提示词
-                this.prompts = { ...this.prompts, ...data.data };
-                console.log('✅ 从服务器加载自定义提示词');
+                // 完全使用服务器端的自定义提示词，不合并默认值
+                this.prompts = data.data;
+                console.log('✅ 从服务器加载自定义提示词，忽略默认模板');
             } else {
-                // 如果服务器没有自定义提示词，尝试从本地存储迁移
+                // 只有服务器没有数据时，才使用默认值
+                console.log('⚠️ 服务器无自定义提示词，使用默认模板');
+                // 尝试从本地存储迁移
                 await this.migrateLocalPrompts();
             }
         } catch (error) {
-            console.warn('从服务器加载提示词失败，尝试本地存储:', error);
-            // 服务器加载失败时，回退到本地存储
-            await this.migrateLocalPrompts();
+            console.warn('从服务器加载提示词失败，使用默认模板:', error);
+            // 服务器加载失败时，使用默认模板
+            this.prompts = this.getDefaultPrompts();
         }
         
         // 初始化设置页面的提示词内容
@@ -341,17 +344,21 @@ class PoemApp {
         if (savedPrompts) {
             try {
                 const localPrompts = JSON.parse(savedPrompts);
-                this.prompts = { ...this.prompts, ...localPrompts };
                 
                 // 尝试迁移到服务器
                 await this.savePromptsToServer(localPrompts);
                 
-                // 迁移成功后清除本地存储
+                // 迁移成功后，使用迁移的数据并清除本地存储
+                this.prompts = localPrompts;
                 localStorage.removeItem('custom-prompts');
                 console.log('✅ 本地提示词已迁移到服务器');
             } catch (error) {
-                console.error('迁移本地提示词失败:', error);
+                console.error('迁移本地提示词失败，使用默认模板:', error);
+                this.prompts = this.getDefaultPrompts();
             }
+        } else {
+            // 没有本地数据，使用默认模板
+            this.prompts = this.getDefaultPrompts();
         }
     }
 
