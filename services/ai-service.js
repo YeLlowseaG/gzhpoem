@@ -461,11 +461,35 @@ ${content ? `用户提供的诗词原文：\n${content}` : '注意：用户未�
     }
 
     /**
-     * 添加封面图片
+     * 添加封面图片并清理格式
      */
     addCoverImage(content) {
+        // 清理AI返回内容中的markdown代码块标记
+        const cleanedContent = this.cleanAIResponse(content);
+        
         const coverImage = '![封面图片](https://images.unsplash.com/photo-1551218808-94e220e084d2?w=800&h=400&fit=crop)';
-        return `${coverImage}\n\n${content}`;
+        return `${coverImage}\n\n${cleanedContent}`;
+    }
+    
+    /**
+     * 清理AI返回内容中的多余格式标记
+     */
+    cleanAIResponse(content) {
+        if (!content || typeof content !== 'string') {
+            return content;
+        }
+        
+        // 移除markdown代码块包装
+        let cleaned = content
+            .replace(/^```[\w]*\n/, '')  // 移除开头的 ```markdown 或 ```
+            .replace(/\n```$/, '')       // 移除结尾的 ```
+            .replace(/^```[\w]*/, '')    // 移除开头的 ```markdown（无换行）
+            .replace(/```$/, '');        // 移除结尾的 ```（无换行）
+        
+        // 移除多余的空行
+        cleaned = cleaned.replace(/^\n+/, '').replace(/\n+$/, '');
+        
+        return cleaned;
     }
 
     /**
