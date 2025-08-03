@@ -22,7 +22,7 @@ class TitleGenerator {
     async generateTitle(author, title, style = 'emotional', customPrompt = null) {
         try {
             // 尝试AI生成
-            const aiTitle = await this.generateWithAI(author, title, style, customPrompt);
+            const aiTitle = await this.generateWithAI(author, title, style, customPrompt, 0);
             if (aiTitle) {
                 return aiTitle;
             }
@@ -37,7 +37,7 @@ class TitleGenerator {
     /**
      * 使用AI生成标题（支持自定义提示词）
      */
-    async generateWithAI(author, title, style, customPrompt = null) {
+    async generateWithAI(author, title, style, customPrompt = null, styleIndex = 0) {
         let prompt;
         
         if (customPrompt) {
@@ -48,28 +48,35 @@ class TitleGenerator {
                 .replace(/\{style === 'emotional' \? '情感共鸣型，触动内心' : '文艺深度型，有思辨性'\}/g, 
                     style === 'emotional' ? '情感共鸣型，触动内心' : '文艺深度型，有思辨性');
         } else {
-            // 使用默认的10万+爆文提示词
-            prompt = `请为${author}的《${title}》生成一个10万+阅读量的爆文标题！
+            // 根据生成次数使用不同风格的标题，确保多样性
+            const titleStyles = [
+                // 第1个标题：秘密/未解之谜风格
+                `请为${author}的《${title}》生成一个"秘密未解"风格的10万+爆文标题！
+                
+要求：包含${author}和《${title}》，必须有阿拉伯数字，强调神秘感和未解之谜。
+套路：秘密、真相、未解、隐藏、99%的人不知道
+示例思路："王勃《静夜思》隐藏的3个千年秘密，学者都震惊了！"
+请直接返回标题。`,
 
-## 爆文标题要求：
-1. **字数控制**：20-30字，要足够有冲击力
-2. **包含元素**：必须包含${author}和《${title}》
-3. **阿拉伯数字强制要求**：标题中必须包含阿拉伯数字（如1、3、7、20、99、1000等）
-4. **传播目标**：朋友圈疯传、微博热议、收藏转发的10万+爆文标题
+                // 第2个标题：人生智慧/哲理风格  
+                `请为${author}的《${title}》生成一个"人生智慧"风格的10万+爆文标题！
+                
+要求：包含${author}和《${title}》，必须有阿拉伯数字，强调人生感悟和智慧。
+套路：人生智慧、改变命运、看懂的人、值得收藏、一生受益
+示例思路："李白《将进酒》藏着的5条人生智慧，看懂受益一生！"
+请直接返回标题。`,
 
-## 10万+爆文标题技巧：
-**数字爆炸技巧**：1000年、99%、3个字制造强冲击
-**好奇心引爆**：秘密、真相、你绝对想不到
-**情感共鸣炸弹**：说的就是你、看完沉默了
-**争议话题**：颠覆认知、网友吵翻了
-**收藏转发**：必须收藏、受益终生
-
-## 重要要求：
-- **阿拉伯数字强制**：标题中必须包含阿拉伯数字，没有数字的标题一律不合格！
-- **作者信息准确**：必须使用正确的${author}，绝对不能出错
-- **传播炸弹**：标题要有强烈的点击冲动，让人看到就想点开、想转发
-
-请直接返回标题，不要解释过程。`;
+                // 第3个标题：情感共鸣/现代启示风格
+                `请为${author}的《${title}》生成一个"情感共鸣"风格的10万+爆文标题！
+                
+要求：包含${author}和《${title}》，必须有阿拉伯数字，强调现代人的情感共鸣。
+套路：说的就是你、现代启示、看哭了、扎心了、引发深思
+示例思路："杜甫《春望》的7个细节，让1000万现代人看哭了！"
+请直接返回标题。`
+            ];
+            
+            // 循环使用不同风格，确保多样性
+            prompt = titleStyles[styleIndex % titleStyles.length];
         }
 
         try {
@@ -148,10 +155,10 @@ class TitleGenerator {
     async generateMultipleTitles(author, title, style = 'emotional', count = 3, customPrompt = null) {
         const titles = [];
         
-        // 生成多个AI标题
+        // 生成多个AI标题，每个使用不同风格
         for (let i = 0; i < count; i++) {
             try {
-                const aiTitle = await this.generateWithAI(author, title, style, customPrompt);
+                const aiTitle = await this.generateWithAI(author, title, style, customPrompt, i);
                 if (aiTitle && !titles.includes(aiTitle)) {
                     titles.push(aiTitle);
                 }
@@ -182,21 +189,35 @@ class TitleGenerator {
 
         const templates = styleTemplates[style] || styleTemplates.emotional;
         
-        // 如果AI生成的标题不够，用10万+模板补充
+        // 如果AI生成的标题不够，用多样化模板补充
         if (titles.length < count) {
             const fallbackTitles = [
-                `${author}《${title}》：3个细节，藏着1000年的智慧`,
-                `为什么${author}的《${title}》让99%的人沉默了？`,
-                `${author}《${title}》里的7个字，说透了人生真相`,
-                `震撼！${author}《${title}》隐藏的5个秘密，太惊人了`,
-                `${author}《${title}》：1首诗改变命运，看懂的人都收藏了`
+                // 神秘风格
+                `${author}《${title}》背后隐藏的10个惊天秘密，99%的人不知道！`,
+                `震撼！${author}《${title}》竟然预言了1000年后的今天`,
+                
+                // 智慧风格  
+                `${author}《${title}》：3句话改变命运，看懂受益一生！`,
+                `读懂${author}《${title}》的5个智慧，你就读懂了人生`,
+                
+                // 情感风格
+                `${author}《${title}》的7个细节，让现代人看哭了`,
+                `为什么${author}《${title}》让千万人深夜沉思？`,
+                
+                // 对比风格
+                `古人写诗vs现代人发朋友圈：${author}《${title}》告诉你差距在哪`,
+                `${author}写了8个字，现代人用了800字都说不清楚！`
             ];
             
-            fallbackTitles.forEach(fallbackTitle => {
-                if (titles.length < count && !titles.includes(fallbackTitle)) {
+            // 按顺序添加不同风格的标题
+            let titleIndex = 0;
+            while (titles.length < count && titleIndex < fallbackTitles.length) {
+                const fallbackTitle = fallbackTitles[titleIndex];
+                if (!titles.includes(fallbackTitle)) {
                     titles.push(fallbackTitle);
                 }
-            });
+                titleIndex++;
+            }
         }
         
         return titles;
