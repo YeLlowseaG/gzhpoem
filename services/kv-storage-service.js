@@ -10,7 +10,7 @@ class KVStorageService {
             console.log('✅ Redis 存储服务已启用！');
         } else {
             this.isRedisAvailable = false;
-            console.log('⚠️ Redis 存储服务不可用，使用内存存储');
+            console.log('⚠️ Redis 存储服务不可用，使用内存存储！');
         }
         this.memoryStorage = {
             articles: [],
