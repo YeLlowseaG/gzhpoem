@@ -199,7 +199,7 @@ class AIService {
             // 并行生成所有内容（禁用AI图片生成）
             const [articleResult, titleResult, coverResult] = await Promise.allSettled([
                 this.generateArticleContent({ author, title, style, keywords, content, customPrompt }),
-                this.titleGenerator.generateMultipleTitles(author, title, style, 3),
+                this.titleGenerator.generateMultipleTitles(author, title, style, 3, this.getTitlePrompt()),
                 // 使用智能封面生成系统
                 this.coverGenerator.generateWebCover(author, title, style)
             ]);
@@ -932,6 +932,30 @@ ${content || '（暂无具体内容）'}
         }
 
         throw new Error('图片生成超时，请稍后重试');
+    }
+
+    /**
+     * 获取标题生成提示词
+     */
+    getTitlePrompt() {
+        // 尝试获取用户自定义的标题提示词
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const promptsFile = path.join(process.cwd(), 'data', 'custom-prompts.json');
+            
+            if (fs.existsSync(promptsFile)) {
+                const prompts = JSON.parse(fs.readFileSync(promptsFile, 'utf8'));
+                if (prompts.poetry_title) {
+                    return prompts.poetry_title;
+                }
+            }
+        } catch (error) {
+            console.log('获取自定义标题提示词失败，使用默认提示词');
+        }
+        
+        // 返回默认的10万+标题提示词
+        return null; // null表示使用title-generator.js中的默认提示词
     }
 }
 

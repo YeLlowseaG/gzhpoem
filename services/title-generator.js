@@ -17,12 +17,12 @@ class TitleGenerator {
     }
 
     /**
-     * 生成爆款标题
+     * 生成爆款标题（使用自定义提示词）
      */
-    async generateTitle(author, title, style = 'emotional') {
+    async generateTitle(author, title, style = 'emotional', customPrompt = null) {
         try {
             // 尝试AI生成
-            const aiTitle = await this.generateWithAI(author, title, style);
+            const aiTitle = await this.generateWithAI(author, title, style, customPrompt);
             if (aiTitle) {
                 return aiTitle;
             }
@@ -35,19 +35,42 @@ class TitleGenerator {
     }
 
     /**
-     * 使用AI生成标题
+     * 使用AI生成标题（支持自定义提示词）
      */
-    async generateWithAI(author, title, style) {
-        const prompt = `请为${author}的《${title}》生成一个公众号爆文标题。
+    async generateWithAI(author, title, style, customPrompt = null) {
+        let prompt;
+        
+        if (customPrompt) {
+            // 使用自定义提示词并替换变量
+            prompt = customPrompt
+                .replace(/\{author\}/g, author)
+                .replace(/\{title\}/g, title)
+                .replace(/\{style === 'emotional' \? '情感共鸣型，触动内心' : '文艺深度型，有思辨性'\}/g, 
+                    style === 'emotional' ? '情感共鸣型，触动内心' : '文艺深度型，有思辨性');
+        } else {
+            // 使用默认的10万+爆文提示词
+            prompt = `请为${author}的《${title}》生成一个10万+阅读量的爆文标题！
 
-要求：
-1. 字数控制在20-30字之间
-2. 风格：${style === 'emotional' ? '情感化，容易引起共鸣' : '文艺范，有深度'}
-3. 包含关键词：${author}、${title}
-4. 吸引眼球，提升点击率
-5. 避免过度煽情，保持文学性
+## 爆文标题要求：
+1. **字数控制**：20-30字，要足够有冲击力
+2. **包含元素**：必须包含${author}和《${title}》
+3. **阿拉伯数字强制要求**：标题中必须包含阿拉伯数字（如1、3、7、20、99、1000等）
+4. **传播目标**：朋友圈疯传、微博热议、收藏转发的10万+爆文标题
 
-请直接返回标题，不要其他内容。`;
+## 10万+爆文标题技巧：
+**数字爆炸技巧**：1000年、99%、3个字制造强冲击
+**好奇心引爆**：秘密、真相、你绝对想不到
+**情感共鸣炸弹**：说的就是你、看完沉默了
+**争议话题**：颠覆认知、网友吵翻了
+**收藏转发**：必须收藏、受益终生
+
+## 重要要求：
+- **阿拉伯数字强制**：标题中必须包含阿拉伯数字，没有数字的标题一律不合格！
+- **作者信息准确**：必须使用正确的${author}，绝对不能出错
+- **传播炸弹**：标题要有强烈的点击冲动，让人看到就想点开、想转发
+
+请直接返回标题，不要解释过程。`;
+        }
 
         try {
             const qwenKey = process.env.QWEN_API_KEY;
@@ -122,17 +145,19 @@ class TitleGenerator {
     /**
      * 生成多个标题供选择
      */
-    async generateMultipleTitles(author, title, style = 'emotional', count = 3) {
+    async generateMultipleTitles(author, title, style = 'emotional', count = 3, customPrompt = null) {
         const titles = [];
         
-        // 生成AI标题
-        try {
-            const aiTitle = await this.generateWithAI(author, title, style);
-            if (aiTitle) {
-                titles.push(aiTitle);
+        // 生成多个AI标题
+        for (let i = 0; i < count; i++) {
+            try {
+                const aiTitle = await this.generateWithAI(author, title, style, customPrompt);
+                if (aiTitle && !titles.includes(aiTitle)) {
+                    titles.push(aiTitle);
+                }
+            } catch (error) {
+                console.log(`AI生成第${i+1}个标题失败`);
             }
-        } catch (error) {
-            console.log('AI生成标题失败');
         }
         
         // 生成模板标题补充
@@ -157,15 +182,21 @@ class TitleGenerator {
 
         const templates = styleTemplates[style] || styleTemplates.emotional;
         
-        while (titles.length < count) {
-            const template = templates[Math.floor(Math.random() * templates.length)];
-            const generatedTitle = template
-                .replace(/{author}/g, author)
-                .replace(/{title}/g, title);
+        // 如果AI生成的标题不够，用10万+模板补充
+        if (titles.length < count) {
+            const fallbackTitles = [
+                `${author}《${title}》：3个细节，藏着1000年的智慧`,
+                `为什么${author}的《${title}》让99%的人沉默了？`,
+                `${author}《${title}》里的7个字，说透了人生真相`,
+                `震撼！${author}《${title}》隐藏的5个秘密，太惊人了`,
+                `${author}《${title}》：1首诗改变命运，看懂的人都收藏了`
+            ];
             
-            if (!titles.includes(generatedTitle)) {
-                titles.push(generatedTitle);
-            }
+            fallbackTitles.forEach(fallbackTitle => {
+                if (titles.length < count && !titles.includes(fallbackTitle)) {
+                    titles.push(fallbackTitle);
+                }
+            });
         }
         
         return titles;

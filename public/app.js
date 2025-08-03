@@ -777,6 +777,7 @@ class PoemApp {
         let html = '';
         
         // 显示生成的标题选项（如果有多个）
+        console.log('检查标题数据:', result.titles);
         if (result.titles && result.titles.length > 0) {
             html += `<div class="generated-titles">
                 <div class="titles-header">
@@ -795,6 +796,8 @@ class PoemApp {
                 `;
             });
             html += '</div>';
+        } else {
+            console.log('标题数据为空或不存在');
         }
         
         // 显示封面预览（如果有）
@@ -1182,7 +1185,7 @@ class PoemApp {
             }
 
             // 调用标题生成API
-            const response = await fetch('/api/generate-title', {
+            const response = await fetch('/api/titles/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
