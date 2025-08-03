@@ -7,7 +7,7 @@ class KVStorageService {
         if (process.env.REDIS_URL) {
             this.redis = new Redis(process.env.REDIS_URL);
             this.isRedisAvailable = true;
-            console.log('✅ Redis 存储服务已启用');
+            console.log('✅ Redis 存储服务已启用！');
         } else {
             this.isRedisAvailable = false;
             console.log('⚠️ Redis 存储服务不可用，使用内存存储');
