@@ -96,74 +96,6 @@ class PoemApp {
 
 **重要提醒**：这不是普通的学术文章，而是要在朋友圈、微博被疯狂转发的爆款诗词解读！每一句话都要考虑传播价值！不要小标题，要纯文本！`,
 
-            poetry_narrative: `请为{author}的《{title}》创作一篇自然流畅又有传播力的诗词解读文，要求1000-1300字。
-
-## 文章类型：无痕迹爆款文（表面自然流畅，内核传播力强）
-
-## 核心要求：
-1. **诗词原文准确性**：必须提供完整准确的诗词原文，如果用户未提供，请根据知识库查找正确版本
-2. **写作风格**：{style}
-3. **隐藏的爆款属性**：文章要自然流畅，但暗含爆款元素，让读者在不知不觉中被吸引和感动
-
-## 自然流畅结构：
-
-### 自然开头（150字，分2段）
-- **第一段**：用故事、现象或提问抓住注意力（75字）
-- **第二段**：自然过渡到诗词，保持悬念（75字）
-
-### 诗词呈现
-- 在合适位置展示完整诗词原文
-- 可配一句自然的感叹或引导
-
-### 背景故事（200字，分3段）
-- **第一段**：诗人境遇故事化，有画面感（约70字）
-- **第二段**：创作缘由有转折，引发共鸣（约70字）
-- **第三段**：连接现代生活，产生时空对话（约60字）
-
-### 深入品读（600字，分5段）
-- **第一段**：整体感受，新角度切入（约120字）
-- **第二段**：具体分析，生活化解读（约120字）
-- **第三段**：情感体验，强化代入感（约120字）
-- **第四段**：艺术手法，通俗易懂（约120字）
-- **第五段**：情感升华，自然设置金句（约120字）
-
-### 现代思考（300字，分2段）
-- **第一段**：文学价值的现代解读（约150字）
-- **第二段**：与当代生活的深度连接（约150字）
-
-### 自然收尾（200字, 1段）
-- 自然收束，留有回味空间
-- 可用暗示性提问或感慨结尾
-
-## 无痕迹爆款技巧：
-- **自然金句**：每2-3段要有一句让人想摘抄的话，但不能刻意
-- **情感节奏**：要有起伏，在不知不觉中调动读者情感
-- **共鸣设计**：看似在讲古诗，实则在讲现代人的心境
-- **转发基因**：要有让人想发朋友圈的点，但要自然不做作
-- **收藏价值**：要让读者觉得"这篇文章写得真好，值得保存"
-
-## 手机排版要求：
-- **段落长度**：每段严格控制在60-130字之间，超过则必须分段
-- **句子长度**：单句不超过30字，复句不超过50字
-- **分段原则**：一个观点一段，不要混合多个要点
-- **空行使用**：段落间保持空行，提升阅读体验
-- **标点节奏**：多用句号分隔，减少逗号长句
-- **视觉呼吸**：避免大段文字墙，让版面有呼吸感
-- **自然分段**：按情感节奏和逻辑转折分段，保持流畅性
-
-## 关键词融入：
-如提供关键词：{keywords}，请自然融入文章中
-
-## 诗词原文：
-{content}
-
-## 文章格式要求：
-**完全不使用小标题，纯文本流：**
-- **自然流畅**：整篇文章不出现任何小标题，段落自然过渡
-- **段落分隔**：只用空行分隔段落，保持文章连贯性
-- **无标记文本**：不要有"这首诗"、"深意"等段落标记
-
-请按照以上要求创作，确保内容完整深入，同时保持自然流畅的阅读体验。纯文本，无小标题！`,
 
             poetry: `请为{author}的《{title}》创作一篇深度诗词赏析文章，要求1000-1300字。
 
@@ -435,11 +367,6 @@ class PoemApp {
             poetryStructuredTextarea.value = this.prompts.poetry_structured;
         }
         
-        // 更新诗词赏析提示词 - 叙事风格
-        const poetryNarrativeTextarea = document.getElementById('poetryNarrativeTemplate');
-        if (poetryNarrativeTextarea) {
-            poetryNarrativeTextarea.value = this.prompts.poetry_narrative;
-        }
         
         // 更新诗词标题生成提示词
         const poetryTitleTextarea = document.getElementById('poetryTitleTemplate');
@@ -675,7 +602,6 @@ class PoemApp {
         const title = document.getElementById('title').value.trim();
         const content = document.getElementById('content').value.trim();
         const style = document.getElementById('style').value;
-        const format = document.getElementById('format').value;
         const keywords = document.getElementById('keywords').value.trim();
         
         if (!author || !title) {
@@ -685,15 +611,8 @@ class PoemApp {
         
         this.showLoading();
         
-        // 根据选择的格式确定使用哪个提示词模板
-        let selectedPrompt;
-        if (format === 'structured') {
-            selectedPrompt = this.prompts.poetry_structured;
-        } else if (format === 'narrative') {
-            selectedPrompt = this.prompts.poetry_narrative;
-        } else {
-            selectedPrompt = this.prompts.poetry; // 默认使用原有提示词
-        }
+        // 使用优化后的诗词赏析提示词（结构化版本）
+        const selectedPrompt = this.prompts.poetry_structured;
         
         try {
             const response = await fetch('/api/articles/generate', {
@@ -2062,16 +1981,14 @@ function switchPromptTab(tabName) {
 
 function savePoetryPrompt() {
     const structuredPromptText = document.getElementById('poetryStructuredTemplate').value.trim();
-    const narrativePromptText = document.getElementById('poetryNarrativeTemplate').value.trim();
     const titlePromptText = document.getElementById('poetryTitleTemplate').value.trim();
     
-    if (!structuredPromptText || !narrativePromptText || !titlePromptText) {
+    if (!structuredPromptText || !titlePromptText) {
         app.showToast('error', '所有提示词都不能为空');
         return;
     }
     
     app.prompts.poetry_structured = structuredPromptText;
-    app.prompts.poetry_narrative = narrativePromptText;
     app.prompts.poetry_title = titlePromptText;
     app.savePrompts();
     app.showToast('success', '诗词赏析提示词已保存');
@@ -2083,12 +2000,10 @@ async function resetPoetryPrompt() {
         
         // 更新本地数据
         app.prompts.poetry_structured = defaultPrompts.poetry_structured;
-        app.prompts.poetry_narrative = defaultPrompts.poetry_narrative;
         app.prompts.poetry_title = defaultPrompts.poetry_title;
         
         // 更新UI
         document.getElementById('poetryStructuredTemplate').value = defaultPrompts.poetry_structured;
-        document.getElementById('poetryNarrativeTemplate').value = defaultPrompts.poetry_narrative;
         document.getElementById('poetryTitleTemplate').value = defaultPrompts.poetry_title;
         
         // 保存到服务器

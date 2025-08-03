@@ -118,13 +118,6 @@
                                     </select>
                                 </div>
                                 
-                                <div class="form-group">
-                                    <label for="format">文章格式</label>
-                                    <select id="format">
-                                        <option value="structured">结构化学术风格</option>
-                                        <option value="narrative">自然流畅叙事风格</option>
-                                    </select>
-                                </div>
                                 
                                 <div class="form-group">
                                     <label for="keywords">关键词（可选）</label>
@@ -392,16 +385,11 @@
                         <!-- 诗词赏析提示词 -->
                         <div id="poetryPrompt" class="prompt-tab-content active">
                             <div class="form-group">
-                                <label for="poetryStructuredTemplate">结构化学术风格提示词</label>
-                                <textarea id="poetryStructuredTemplate" rows="12" placeholder="结构化学术风格的AI提示词模板..."></textarea>
+                                <label for="poetryStructuredTemplate">诗词赏析提示词</label>
+                                <textarea id="poetryStructuredTemplate" rows="12" placeholder="诗词赏析的AI提示词模板..."></textarea>
                                 <small>使用变量: {author}, {title}, {style}, {keywords}, {content}</small>
                             </div>
                             
-                            <div class="form-group">
-                                <label for="poetryNarrativeTemplate">自然流畅叙事风格提示词</label>
-                                <textarea id="poetryNarrativeTemplate" rows="12" placeholder="自然流畅叙事风格的AI提示词模板..."></textarea>
-                                <small>使用变量: {author}, {title}, {style}, {keywords}, {content}</small>
-                            </div>
                             
                             <div class="form-group">
                                 <label for="poetryTitleTemplate">诗词标题生成提示词</label>
