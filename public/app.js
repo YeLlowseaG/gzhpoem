@@ -695,8 +695,7 @@ class PoemApp {
             result.titles.forEach((title, index) => {
                 const isSelected = index === 0;
                 html += `
-                    <div class="title-option ${isSelected ? 'selected' : ''}" 
-                         onclick="app.selectTitle('${title.replace(/'/g, "\\'")}', this)">
+                    <div class="title-option ${isSelected ? 'selected' : ''}" data-title="${title.replace(/"/g, '&quot;')}">
                         ${title}
                     </div>
                 `;
@@ -748,6 +747,9 @@ class PoemApp {
         
         // 保存当前选择的标题（使用第一个生成的标题或爆款选题）
         this.selectedTitle = (result.titles && result.titles.length > 0) ? result.titles[0] : result.topic || null;
+        
+        // 绑定标题选择事件
+        this.bindTitleSelectionEvents();
     }
 
     addBaokuanMetadata(articleData) {
@@ -799,8 +801,7 @@ class PoemApp {
             articleData.titles.forEach((title, index) => {
                 const isSelected = index === 0;
                 displayContent += `
-                    <div class="title-option ${isSelected ? 'selected' : ''}" 
-                         onclick="app.selectTitle('${title.replace(/'/g, "\\'")}', this)">
+                    <div class="title-option ${isSelected ? 'selected' : ''}" data-title="${title.replace(/"/g, '&quot;')}">
                         ${title}
                     </div>
                 `;
@@ -875,6 +876,9 @@ class PoemApp {
         
         // 保存当前选择的标题（默认第一个）
         this.selectedTitle = articleData.titles && articleData.titles.length > 0 ? articleData.titles[0] : null;
+        
+        // 绑定标题选择事件
+        this.bindTitleSelectionEvents();
     }
 
     /**
@@ -1065,7 +1069,7 @@ class PoemApp {
         }
     }
 
-    selectTitle(title) {
+    selectTitle(title, element) {
         this.selectedTitle = title;
         
         // 更新UI显示选中状态
@@ -1073,14 +1077,39 @@ class PoemApp {
             option.classList.remove('selected');
         });
         
-        // 找到并高亮选中的标题
-        document.querySelectorAll('.title-option').forEach(option => {
-            if (option.textContent.includes(title)) {
-                option.classList.add('selected');
-            }
-        });
+        // 如果传入了具体的元素，直接选中它
+        if (element) {
+            element.classList.add('selected');
+        } else {
+            // 否则通过文本内容查找
+            document.querySelectorAll('.title-option').forEach(option => {
+                if (option.textContent.trim() === title.trim()) {
+                    option.classList.add('selected');
+                }
+            });
+        }
         
         this.showToast('success', '标题已选择: ' + title);
+    }
+
+    bindTitleSelectionEvents() {
+        // 使用事件委托来处理标题选择
+        const outputElement = document.getElementById('output');
+        if (outputElement) {
+            // 移除之前的事件监听器（如果存在）
+            outputElement.removeEventListener('click', this.titleSelectionHandler);
+            
+            // 创建新的事件处理器
+            this.titleSelectionHandler = (event) => {
+                if (event.target.classList.contains('title-option')) {
+                    const title = event.target.getAttribute('data-title') || event.target.textContent.trim();
+                    this.selectTitle(title, event.target);
+                }
+            };
+            
+            // 添加事件监听器
+            outputElement.addEventListener('click', this.titleSelectionHandler);
+        }
     }
 
     async regenerateTitles() {
@@ -1122,7 +1151,7 @@ class PoemApp {
                 // 更新标题显示
                 this.updateTitlesDisplay(result.titles);
                 // 自动选择第一个标题
-                this.selectTitle(result.titles[0]);
+                this.selectTitle(result.titles[0], null);
                 this.showToast('success', '标题重新生成成功！');
             } else {
                 throw new Error(result.error || '标题生成失败');
@@ -1157,8 +1186,7 @@ class PoemApp {
         titles.forEach((title, index) => {
             const isSelected = index === 0;
             titlesHTML += `
-                <div class="title-option ${isSelected ? 'selected' : ''}" 
-                     onclick="app.selectTitle('${title.replace(/'/g, "\\'")}', this)">
+                <div class="title-option ${isSelected ? 'selected' : ''}" data-title="${title.replace(/"/g, '&quot;')}">
                     ${title}
                 </div>
             `;
