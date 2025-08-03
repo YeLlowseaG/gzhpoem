@@ -802,9 +802,21 @@ class PoemApp {
         
         // 显示生成的标题选项
         if (articleData.titles && articleData.titles.length > 0) {
-            displayContent += '<div class="generated-titles"><h4>🎯 生成的爆款标题：</h4>';
+            displayContent += `<div class="generated-titles">
+                <div class="titles-header">
+                    <h4>🎯 生成的爆款标题：</h4>
+                    <button class="btn btn-sm btn-outline regenerate-btn" onclick="app.regenerateTitles()" title="重新生成标题">
+                        🔄 重新生成
+                    </button>
+                </div>`;
             articleData.titles.forEach((title, index) => {
-                displayContent += `<div class="title-option" onclick="app.selectTitle('${title}')">${index + 1}. ${title}</div>`;
+                const isSelected = index === 0;
+                displayContent += `
+                    <div class="title-option ${isSelected ? 'selected' : ''}" 
+                         onclick="app.selectTitle('${title.replace(/'/g, "\\'")}', this)">
+                        ${title}
+                    </div>
+                `;
             });
             displayContent += '</div><hr>';
         }
