@@ -330,7 +330,8 @@ class PoemApp {
 ## 爆文标题要求：
 1. **字数控制**：20-30字，要足够有冲击力
 2. **包含元素**：必须包含{author}和《{title}》
-3. **传播目标**：朋友圈疯传、微博热议、收藏转发的10万+爆文标题
+3. **阿拉伯数字强制要求**：标题中必须包含阿拉伯数字（如1、3、7、20、99、1000等）
+4. **传播目标**：朋友圈疯传、微博热议、收藏转发的10万+爆文标题
 
 ## 10万+爆文标题技巧（学会精髓，打造传播炸弹）：
 
@@ -367,8 +368,8 @@ class PoemApp {
 
 ## 10万+爆文创作要求：
 - **作者信息准确**：必须使用正确的{author}，绝对不能出错（如王勃的诗不能写成李白）
+- **阿拉伯数字强制**：标题中必须包含阿拉伯数字，没有数字的标题一律不合格！
 - **传播炸弹**：标题要有强烈的点击冲动，让人看到就想点开、想转发
-- **数字必备**：必须融入数字元素，制造视觉冲击和好奇心
 - **情感引爆**：要触发强烈情感反应：震惊、好奇、共鸣、争议
 - **朋友圈测试**：想象这个标题在朋友圈能不能引发大量点赞评论转发
 - **收藏价值**：让人觉得"这个必须收藏"、"太有道理了"
@@ -791,7 +792,13 @@ class PoemApp {
         
         // 显示生成的标题选项（如果有多个）
         if (result.titles && result.titles.length > 0) {
-            html += '<div class="generated-titles"><h4>🎯 生成的爆款标题：</h4>';
+            html += `<div class="generated-titles">
+                <div class="titles-header">
+                    <h4>🎯 生成的爆款标题：</h4>
+                    <button class="btn btn-sm btn-outline regenerate-btn" onclick="app.regenerateTitles()" title="重新生成标题">
+                        🔄 重新生成
+                    </button>
+                </div>`;
             result.titles.forEach((title, index) => {
                 const isSelected = index === 0;
                 html += `
@@ -1167,6 +1174,90 @@ class PoemApp {
         });
         
         this.showToast('success', '标题已选择: ' + title);
+    }
+
+    async regenerateTitles() {
+        try {
+            // 禁用按钮，防止重复点击
+            const regenerateBtn = document.querySelector('.regenerate-btn');
+            if (regenerateBtn) {
+                regenerateBtn.disabled = true;
+                regenerateBtn.textContent = '🔄 生成中...';
+            }
+
+            // 获取当前的输入参数
+            const author = document.getElementById('author').value;
+            const title = document.getElementById('title').value;
+            const style = document.getElementById('style').value;
+
+            if (!author || !title) {
+                this.showToast('error', '请先填写作者和标题信息');
+                return;
+            }
+
+            // 调用标题生成API
+            const response = await fetch('/api/generate-title', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    author: author,
+                    title: title,
+                    style: style,
+                    count: 3  // 生成3个标题
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.titles) {
+                // 更新标题显示
+                this.updateTitlesDisplay(result.titles);
+                // 自动选择第一个标题
+                this.selectTitle(result.titles[0]);
+                this.showToast('success', '标题重新生成成功！');
+            } else {
+                throw new Error(result.error || '标题生成失败');
+            }
+
+        } catch (error) {
+            console.error('重新生成标题失败:', error);
+            this.showToast('error', '重新生成标题失败: ' + error.message);
+        } finally {
+            // 恢复按钮状态
+            const regenerateBtn = document.querySelector('.regenerate-btn');
+            if (regenerateBtn) {
+                regenerateBtn.disabled = false;
+                regenerateBtn.textContent = '🔄 重新生成';
+            }
+        }
+    }
+
+    updateTitlesDisplay(titles) {
+        // 找到标题容器
+        const titlesContainer = document.querySelector('.generated-titles');
+        if (!titlesContainer) return;
+
+        // 重新生成标题选项的HTML
+        let titlesHTML = `<div class="titles-header">
+            <h4>🎯 生成的爆款标题：</h4>
+            <button class="btn btn-sm btn-outline regenerate-btn" onclick="app.regenerateTitles()" title="重新生成标题">
+                🔄 重新生成
+            </button>
+        </div>`;
+
+        titles.forEach((title, index) => {
+            const isSelected = index === 0;
+            titlesHTML += `
+                <div class="title-option ${isSelected ? 'selected' : ''}" 
+                     onclick="app.selectTitle('${title.replace(/'/g, "\\'")}', this)">
+                    ${title}
+                </div>
+            `;
+        });
+
+        titlesContainer.innerHTML = titlesHTML;
     }
 
     renderMarkdown(content) {

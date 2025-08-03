@@ -1075,6 +1075,51 @@ body {
     border-color: var(--primary-color);
 }
 
+/* 标题头部样式 */
+.titles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.titles-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.regenerate-btn {
+    font-size: 0.875rem;
+    padding: 0.4rem 0.8rem;
+    height: auto;
+    min-height: auto;
+    white-space: nowrap;
+}
+
+.regenerate-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .titles-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    
+    .regenerate-btn {
+        align-self: flex-end;
+        font-size: 0.8rem;
+        padding: 0.3rem 0.6rem;
+    }
+}
+
 .cover-preview {
     margin-bottom: 1rem;
 }
