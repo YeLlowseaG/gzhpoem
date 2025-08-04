@@ -14,10 +14,11 @@ class PoemApp {
 
     async init() {
         this.bindEvents();
-        await this.checkServiceStatus();
         await this.loadConfig();
         await this.loadRecentArticles();
         await this.initializePrompts();
+        // 直接设置服务为正常状态
+        this.updateServiceStatus('connected', '服务正常');
     }
 
     getDefaultPrompts() {
@@ -476,31 +477,6 @@ class PoemApp {
         }, 30000); // 30秒自动保存一次
     }
 
-    // ==================== 服务状态检查 ====================
-    async checkServiceStatus() {
-        try {
-            const response = await fetch('/health', { 
-                method: 'GET',
-                headers: { 'Accept': 'application/json' }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'healthy') {
-                    this.updateServiceStatus('connected', '服务正常');
-                } else {
-                    this.updateServiceStatus('connected', '服务运行中');
-                }
-            } else {
-                // 如果health接口不可用，但响应了，说明服务是运行的
-                this.updateServiceStatus('connected', '服务运行中');
-            }
-        } catch (error) {
-            console.warn('健康检查失败，但服务可能仍在运行:', error);
-            // 降级处理：假设服务正常，让用户可以尝试使用
-            this.updateServiceStatus('connected', '服务运行中');
-        }
-    }
 
     updateServiceStatus(status, message) {
         const statusElement = document.getElementById('serviceStatus');

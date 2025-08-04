@@ -52,18 +52,6 @@ app.use((err, req, res, next) => {
     });
 });
 
-// 健康检查
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        services: {
-            ai: aiService.isConfigured(),
-            wechat: wechatService.isConfigured(),
-            storage: storageService.isReady()
-        }
-    });
-});
 
 // 获取当前服务器出口 IP（用于微信白名单）
 app.get('/api/ip', async (req, res) => {
@@ -2003,7 +1991,6 @@ app.listen(PORT, async () => {
     console.log(`   POST /api/prompts               - 保存自定义提示词`);
     console.log(`   DELETE /api/prompts             - 重置提示词为默认`);
     console.log(`   GET  /api/stats                 - 使用统计`);
-    console.log(`   GET  /health                    - 健康检查\n`);
 });
 
 // 优雅关闭
