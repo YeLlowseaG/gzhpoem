@@ -1956,18 +1956,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 全局函数，供HTML调用
 function switchView(viewName) {
+    if (!app) {
+        console.error('App not initialized');
+        return;
+    }
     app.switchView(viewName);
 }
 
 function generateArticle() {
+    if (!app) {
+        console.error('App not initialized');
+        return;
+    }
+    console.log('Generating article...');
     app.generateArticle();
 }
 
 function generateBaokuan() {
+    if (!app) {
+        console.error('App not initialized');
+        return;
+    }
     app.generateBaokuan();
 }
 
 function switchMode(modeName) {
+    if (!app) {
+        console.error('App not initialized');
+        return;
+    }
+    console.log('Switching to mode:', modeName);
     app.switchMode(modeName);
 }
 
