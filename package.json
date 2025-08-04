@@ -1,6 +1,6 @@
 {
   "name": "poetry-wechat-generator",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "最美诗词公众号文章生成器 - 重构版",
   "main": "server.js",
   "scripts": {
